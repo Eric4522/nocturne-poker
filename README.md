@@ -40,4 +40,4 @@ Para solicitar la indexación desde la cuenta del propietario:
 3. En **Sitemaps**, enviar `sitemap.xml`.
 4. En **Inspección de URLs**, inspeccionar `https://conexion-politica.onrender.com/` y solicitar su indexación. Revisar después el estado real de indexación y las consultas de búsqueda en Search Console.
 
-No se ha dado de alta la propiedad ni enviado el sitemap desde Search Console: requiere la cuenta de Google del propietario y su etiqueta de verificación. La disponibilidad pública y una consulta `site:` no acreditan por sí solas el estado de indexación de Google.
+La etiqueta de verificación proporcionada por el propietario está incorporada a `content/home.html` y se conserva al regenerar el sitio. El propietario debe pulsar **Verificar** en Search Console y enviar después el sitemap; estas acciones necesitan su sesión de Google. La disponibilidad pública y una consulta `site:` no acreditan por sí solas el estado de indexación de Google.
