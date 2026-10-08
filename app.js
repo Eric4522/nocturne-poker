@@ -19,7 +19,7 @@
   };
   const defaults = {
     difficulty: "normal",
-    sound: false,
+    sound: true,
     reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)")
       .matches,
     speed: "natural",
@@ -64,7 +64,6 @@
     outcomeRecorded = false,
     displayedPot = 0,
     potFrame = null,
-    audio = null,
     activePanel = null;
   function save(key, value) {
     try {
@@ -83,53 +82,13 @@
       $("toast").hidden = true;
     }, 3500);
   }
-  function sound(type) {
-    if (!settings.sound) return;
-    try {
-      audio ||= new (window.AudioContext || window.webkitAudioContext)();
-      if (audio.state === "suspended") audio.resume();
-      const sequences = {
-        card: [
-          [0.0, 420, 0.025],
-          [0.025, 270, 0.025],
-        ],
-        chip: [
-          [0, 1150, 0.025],
-          [0.055, 760, 0.03],
-          [0.1, 1350, 0.025],
-        ],
-        click: [[0, 550, 0.04]],
-        win: [
-          [0, 440, 0.14],
-          [0.13, 554, 0.14],
-          [0.26, 659, 0.22],
-        ],
-        allin: [
-          [0, 165, 0.12],
-          [0.1, 220, 0.15],
-          [0.23, 330, 0.16],
-        ],
-      };
-      for (const [offset, frequency, duration] of sequences[type] ||
-        sequences.click) {
-        const oscillator = audio.createOscillator(),
-          gain = audio.createGain(),
-          start = audio.currentTime + offset;
-        oscillator.type = type === "chip" ? "triangle" : "sine";
-        oscillator.frequency.value = frequency;
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.045, start + 0.008);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-        oscillator.connect(gain);
-        gain.connect(audio.destination);
-        oscillator.start(start);
-        oscillator.stop(start + duration + 0.02);
-      }
-    } catch (_) {
-      /* Sound is optional; gameplay continues if audio is unavailable. */
-    }
-  }
+  function sound(type) { window.PokerSound?.setEnabled(settings.sound); return window.PokerSound?.play(type); }
+  function unlockSound() { window.PokerSound?.setEnabled(settings.sound); if(settings.sound) window.PokerSound?.unlock(); }
+  document.addEventListener('pointerdown',unlockSound,{capture:true});
+  document.addEventListener('keydown',unlockSound,{capture:true});
   function applySettings() {
+    window.PokerSound?.setEnabled(settings.sound);
+    $('quick-sound').textContent=settings.sound?'Probar sonido ♫':'Activar sonido ♫';
     document.body.classList.toggle("reduced-motion", settings.reducedMotion);
     $("lobby-difficulty").textContent = DIFFICULTIES[settings.difficulty];
     $("game-difficulty").textContent =
@@ -510,6 +469,49 @@
           100;
     slider.style.setProperty("--fill", `${fill}%`);
   }
+  const wallet = window.PokerProgression.create(read('nocturne.progress.v3',{}), value => save('nocturne.progress.v3',value));
+  const uniqueId=()=>crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');
+  let gameId = uniqueId(), lastReward = null, topupBusy = false;
+  let pendingTopup = read('nocturne.pendingTopup.v3',{});
+  function paintProgress() {
+    const w=wallet.inspect();
+    document.body.dataset.cardSkin=w.skin;
+    $('wallet-coins').textContent=fmt(w.coins);
+    $('wallet-level').textContent='Nivel '+w.level;
+    $('wallet-reserve').textContent=fmt(w.reserve);
+    $('lobby-progress').innerHTML='<div><span class="eyebrow">TU PRÓXIMO PASO</span><h3>Nivel '+w.level+'</h3><p>'+fmt(w.xp-w.levelStart)+' / '+fmt(w.levelNext-w.levelStart)+' XP</p></div><progress aria-label="Progreso de nivel" value="'+(w.xp-w.levelStart)+'" max="'+(w.levelNext-w.levelStart)+'"></progress><button class="text-button" id="open-progress">Ver objetivos ↗</button>';
+    $('open-progress').addEventListener('click',()=>openPanel('progress'));
+    if(activePanel==='shop'||activePanel==='progress')$('panel-content').innerHTML=panelMarkup(activePanel);
+  }
+  function celebrate(reward) {
+    lastReward=reward;
+    $('reward-celebration').innerHTML='<span class="reward-orbit">✦</span><div><strong>+'+reward.coins+' monedas · +'+reward.xp+' XP</strong><small>'+(reward.unlocks.join(' · ')||'Una mano más en tu historia.')+'</small></div>';
+    $('reward-celebration').hidden=false;
+    clearTimeout(celebrate.timer);celebrate.timer=setTimeout(()=>$('reward-celebration').hidden=true,4800);
+    sound('reward'); paintProgress();
+  }
+  function syncTopup(state) {
+    if(pendingTopup.code!==state.code||!pendingTopup.receipt)return;
+    const confirmed=state.topupReceipts?.find(r=>r.receipt===pendingTopup.receipt);
+    if(!confirmed)return;
+    try {wallet.consume(confirmed.amount,confirmed.receipt);pendingTopup={};save('nocturne.pendingTopup.v3',pendingTopup);paintProgress();toast('Recarga confirmada: +'+fmt(confirmed.amount)+' fichas.');}catch(error){toast(error.message);}
+  }
+  async function applyReserve(amount) {
+    if(topupBusy||wallet.inspect().reserve<amount)return;
+    if(networkMode) {
+      if(!networkAvailable||networkPending||(engine&&engine.phase!=='complete')) {toast('Recarga al terminar la mano.');return;}
+      topupBusy=true;
+      const receipt=pendingTopup.receipt||uniqueId();
+      const code=networkEpoch?.split('.')[0]||document.getElementById('room-code').textContent;
+      pendingTopup={code,receipt,amount};save('nocturne.pendingTopup.v3',pendingTopup);
+      try {const state=await window.PokerRoom.topup(amount,receipt);if(state)syncTopup(state);}
+      finally {topupBusy=false;paintProgress();}
+    } else {
+      if(!engine||engine.phase!=='complete'){toast('Tu reserva se añade al empezar una nueva partida individual.');return;}
+      wallet.consume(amount);const p=engine.players[0];p.stack+=amount;p.eliminated=false;
+      engine.log('rebuy',0,amount,'Recarga de '+amount+' fichas');render();paintProgress();sound('chip');toast('+'+fmt(amount)+' fichas en tu stack.');
+    }
+  }
   function recordResult() {
     if (!engine.result || recordedHand === engine.handNumber) return;
     if (networkMode) {
@@ -518,6 +520,7 @@
     }
     recordedHand = engine.handNumber;
     stats.handsPlayed++;
+    lastReward=null;
     const won = engine.result.pots.some((p) => p.winners.includes(0));
     const wonChips = engine.result.awards[0] - engine.result.refunds[0];
     if (won) {
@@ -534,9 +537,15 @@
       if (survivors.length === 1 && survivors[0].id === 0) stats.gamesWon++;
     }
     save("nocturne.stats.v1", stats);
-    sound(won ? "win" : "card");
+    const own=engine.players[0];
+    const reward=wallet.reward({id:(networkMode?'friends:'+networkEpoch:gameId)+':'+engine.handNumber,won,
+      showdown:engine.result.showdown&&!own.folded,finished:survivors.length===1||own.stack===0,
+      champion:survivors.length===1&&survivors[0].id===0,eligible:own.cards.length>0});
+    if(reward)celebrate(reward);
+    else sound(won ? "win" : "card");
   }
   function renderResult() {
+    $('result-reward').textContent=lastReward?'+'+lastReward.coins+' monedas · +'+lastReward.xp+' XP'+(lastReward.leveled?' · Nivel '+lastReward.level:''):'';
     const r = engine.result,
       winners = [...new Set(r.pots.flatMap((p) => p.winners))],
       won = winners.includes(0);
@@ -643,7 +652,10 @@
   function newGame() {
     if (networkMode) { toast("Sal de la sala para empezar una partida individual."); return; }
     cancelScheduled();
-    engine = new Engine();
+    const extra=Math.min(2000,Math.floor(wallet.inspect().reserve/500)*500);
+    if(extra)wallet.consume(extra);
+    engine = new Engine({stacks:[1000+extra,1000,1000,1000,1000,1000]});
+    gameId=uniqueId();lastReward=null;paintProgress();
     recordedHand = 0;
     outcomeRecorded = false;
     stats.gamesPlayed++;
@@ -691,6 +703,13 @@
     if (!paused) progress();
   }
   function panelMarkup(name) {
+    const w=wallet.inspect();
+    if(name==='shop') {
+      const canApply=(!networkMode&&engine?.phase==='complete')||(networkMode&&(!engine||engine.phase==='complete'));
+      return '<span class="eyebrow">TU COLECCIÓN. TU MESA.</span><h2>Un poco más tuyo.</h2><p class="panel-intro">Gana monedas jugando. Elige lo que quieres, con precios claros.</p><div class="shop-wallet"><div><span>Monedas</span><strong>'+fmt(w.coins)+'</strong></div><div><span>Fichas en reserva</span><strong>'+fmt(w.reserve)+'</strong></div></div><h3>Fichas para volver a la mesa</h3><div class="shop-grid">'+window.PokerProgression.catalog.filter(i=>i.type==='chips').map(i=>'<article class="shop-item"><span class="shop-token">'+i.icon+'</span><strong>'+fmt(i.amount)+' fichas</strong><p>'+i.description+'</p><button class="button" data-buy="'+i.id+'" '+(w.coins<i.cost?'disabled':'')+'>Comprar · '+i.cost+' monedas</button></article>').join('')+'</div><div class="reserve-actions">'+[500,1000,2000].map(n=>'<button class="button outline-button" data-apply-chips="'+n+'" '+(!canApply||w.reserve<n||topupBusy?'disabled':'')+'>Añadir '+fmt(n)+' a la mesa</button>').join('')+'</div><p class="panel-footnote">Máximo 2.000 por pausa en salas. Sólo antes de empezar o entre manos. En modo individual, hasta 2.000 de tu reserva se añaden al iniciar una partida nueva.</p><h3>Elige tu dorso</h3><div class="shop-grid skin-grid">'+[{id:'classic',name:'Azul original',cost:0,type:'skin'},...window.PokerProgression.catalog.filter(i=>i.type==='skin')].map(i=>'<article class="shop-item"><span class="skin-sample skin-'+i.id+'">N</span><strong>'+i.name+'</strong><button class="button '+(w.skin===i.id?'outline-button':'')+'" '+(w.owned.includes(i.id)?'data-equip="'+i.id+'"':'data-buy="'+i.id+'"')+' '+(!w.owned.includes(i.id)&&w.coins<i.cost?'disabled':'')+'>'+(w.skin===i.id?'En uso':w.owned.includes(i.id)?'Usar diseño':i.cost+' monedas')+'</button></article>').join('')+'</div><p class="panel-footnote">Monedas, reserva y colección guardadas en este navegador. Sin dinero real ni valor de canje. Borrar los datos del navegador borra este progreso.</p>';
+    }
+    if(name==='progress') return '<span class="eyebrow">PASO A PASO</span><h2>Tu historia sigue.</h2><div class="level-card"><span>Nivel '+w.level+'</span><strong>'+fmt(w.xp)+' XP</strong><progress aria-label="Experiencia" value="'+(w.xp-w.levelStart)+'" max="'+(w.levelNext-w.levelStart)+'"></progress><p>'+fmt(w.levelNext-w.xp)+' XP para el siguiente nivel · Premio: 25 monedas</p></div><div class="mission-list">'+window.PokerProgression.missions.map(m=>'<article class="mission '+(w.claimed.includes(m.id)?'mission-complete':'')+'"><div><strong>'+m.title+'</strong><p>'+m.description+'</p><progress aria-label="'+m.title+'" value="'+Math.min(w[m.metric],m.target)+'" max="'+m.target+'"></progress></div><span>'+(w.claimed.includes(m.id)?'✓ Cobrado':Math.min(w[m.metric],m.target)+'/'+m.target+' · +'+m.coins+' monedas')+'</span></article>').join('')+'</div><p class="panel-footnote">Una mano: +6 monedas y +20 XP. Ganarla: +14 monedas y +20 XP extra. Showdown sin retirarte: +4 monedas. Torneo terminado: +20 monedas, o +100 si eres campeón. Primera victoria: +25 monedas. Los objetivos se cobran automáticamente y no caducan.</p><button class="button" id="progress-to-shop">Explorar la tienda</button>';
+
     if (name === "difficulty")
       return `<span class="eyebrow">ELIGE TU DESAFÍO</span><h2>La misma mesa. Otro nivel.</h2><p class="panel-intro">Los cinco rivales conservan su personalidad. Tú eliges cuánto tendrán en cuenta las probabilidades.</p><div class="difficulty-options">${[
         [
@@ -720,7 +739,7 @@
           "",
         )}</div><p class="panel-footnote">El cambio se aplica a las siguientes decisiones de los rivales. Las cartas de los demás permanecen ocultas para cada bot.</p>`;
     if (name === "settings")
-      return `<span class="eyebrow">A TU RITMO</span><h2>Haz tuya la mesa.</h2><p class="panel-intro">Los ajustes se guardan en este navegador.</p><label class="setting-row"><span><strong>Sonidos de la mesa</strong><small>Cartas, fichas y un pequeño guiño al ganar.</small></span><input class="toggle" type="checkbox" data-setting="sound" ${settings.sound ? "checked" : ""} aria-label="Sonidos de la mesa"></label><label class="setting-row"><span><strong>Reducir movimiento</strong><small>Transiciones discretas y sin desplazamientos.</small></span><input class="toggle" type="checkbox" data-setting="reducedMotion" ${settings.reducedMotion ? "checked" : ""} aria-label="Reducir movimiento"></label><label class="setting-row"><span><strong>Ritmo de la partida</strong><small>Tiempo de pensamiento y cambio de rondas.</small></span><select data-setting="speed" aria-label="Ritmo de la partida"><option value="natural" ${settings.speed === "natural" ? "selected" : ""}>Natural</option><option value="fast" ${settings.speed === "fast" ? "selected" : ""}>Ágil</option></select></label><button class="button new-game-button" id="settings-new-game">EMPEZAR UNA NUEVA PARTIDA</button><p class="panel-footnote">La nueva partida reinicia la mesa a 1.000 fichas por jugador. Conserva tus estadísticas. No se guarda una mano interrumpida al cerrar o recargar.</p>`;
+      return `<span class="eyebrow">A TU RITMO</span><h2>Haz tuya la mesa.</h2><p class="panel-intro">Los ajustes se guardan en este navegador.</p><label class="setting-row"><span><strong>Sonidos de la mesa</strong><small>Cartas, fichas y un pequeño guiño al ganar.</small></span><input class="toggle" type="checkbox" data-setting="sound" ${settings.sound ? "checked" : ""} aria-label="Sonidos de la mesa"></label><div class="sound-test-row"><button class="button outline-button" id="test-sound">Probar sonido</button><small id="sound-status" role="status">Toca para escuchar la melodía.</small></div><label class="setting-row"><span><strong>Reducir movimiento</strong><small>Transiciones discretas y sin desplazamientos.</small></span><input class="toggle" type="checkbox" data-setting="reducedMotion" ${settings.reducedMotion ? "checked" : ""} aria-label="Reducir movimiento"></label><label class="setting-row"><span><strong>Ritmo de la partida</strong><small>Tiempo de pensamiento y cambio de rondas.</small></span><select data-setting="speed" aria-label="Ritmo de la partida"><option value="natural" ${settings.speed === "natural" ? "selected" : ""}>Natural</option><option value="fast" ${settings.speed === "fast" ? "selected" : ""}>Ágil</option></select></label><button class="button new-game-button" id="settings-new-game">EMPEZAR UNA NUEVA PARTIDA</button><p class="panel-footnote">La nueva partida reinicia la mesa a 1.000 fichas por jugador. Conserva tus estadísticas. No se guarda una mano interrumpida al cerrar o recargar.</p>`;
     if (name === "stats") {
       const values = [
         ["PARTIDAS JUGADAS", fmt(stats.gamesPlayed)],
@@ -799,7 +818,21 @@
       sound("click");
     }),
   );
-  $("panel-content").addEventListener("click", (event) => {
+  $('shop-button').addEventListener('click',()=>openPanel('shop'));
+  $('quick-sound').addEventListener('click',async()=>{settings.sound=true;applySettings();unlockSound();const ok=await sound('win');toast(ok?'Sonido activo.':'Toca de nuevo para activar el sonido.');});
+  $("panel-content").addEventListener("click", async (event) => {
+    const buy=event.target.closest('[data-buy]'),equip=event.target.closest('[data-equip]'),topup=event.target.closest('[data-apply-chips]');
+    try {
+      if(buy){const item=wallet.buy(buy.dataset.buy);paintProgress();sound('reward');toast(item.type==='chips'?'+'+fmt(item.amount)+' fichas en tu reserva.':'Diseño desbloqueado: '+item.name);}
+      if(equip){wallet.equip(equip.dataset.equip);paintProgress();sound('click');}
+      if(topup)await applyReserve(Number(topup.dataset.applyChips));
+    }catch(error){toast(error.message);}
+    if(event.target.closest('#progress-to-shop')){$('panel-content').innerHTML=panelMarkup('shop');activePanel='shop';}
+    if(event.target.closest('#test-sound')) {
+      settings.sound=true;applySettings();unlockSound();
+      const ok=await sound('win');const status=$('sound-status');if(status)status.textContent=ok?'Sonido activo. Si no lo oyes, revisa el volumen del dispositivo.':'El audio está bloqueado. Toca de nuevo para activarlo.';
+      const toggle=$('panel-content').querySelector('[data-setting="sound"]');if(toggle)toggle.checked=true;
+    }
     const difficulty = event.target.closest("[data-difficulty]");
     if (difficulty) {
       settings.difficulty = difficulty.dataset.difficulty;
@@ -889,8 +922,8 @@
       if (networkMode) { engine = null; networkMode = false; networkEpoch = null; networkVersion = null; $("game").hidden = true; showLobby(); }
       return;
     }
-    networkMode = true; lobbyVisible = false; $("lobby").hidden = true;
-    if (!state.game) { engine = null; $("game").hidden = true; return; }
+    networkMode = true; syncTopup(state); lobbyVisible = false; $("lobby").hidden = true;
+    if (!state.game) { engine = null; $("game").hidden = true; paintProgress(); return; }
     const epoch = `${state.code}.${state.epoch}`;
     if (engine && networkEpoch === epoch && networkVersion === state.version) {
       renderControls();
@@ -900,6 +933,8 @@
     networkVersion = state.version;
     const first = networkEpoch !== epoch || !engine;
     const oldHand = engine?.handNumber;
+    const oldStreet = engine?.street;
+    const oldActor = engine?.actor;
     const oldSeq = engine?.history.at(-1)?.seq || 0;
     engine = { ...state.game,
       get live() { return this.players.filter(p => !p.folded && !p.eliminated); },
@@ -915,10 +950,14 @@
       $("board").replaceChildren(); document.querySelectorAll(".hole-cards").forEach(c => c.replaceChildren());
     }
     const eventAction = engine.history.at(-1);
+    if(first||oldHand!==engine.handNumber||oldStreet!==engine.street)sound('card');
+    else if(oldActor!==engine.actor&&engine.actor===0)sound('click');
+    if(eventAction?.seq>oldSeq&&['check','fold'].includes(eventAction.type))sound('click');
     $("game").hidden = false;
     render({ deal: first || oldHand !== engine.handNumber });
     if (eventAction?.seq > oldSeq && eventAction.id !== null && eventAction.amount > 0) flyChips(eventAction.id, eventAction.amount, eventAction.type === "allin");
     if (engine.phase === "complete") recordResult();
+    paintProgress();
   });
   // Read-only diagnostics for reproducible browser QA. No privileged cards are
   // exposed during a hand and no API can bypass the actual action buttons.
@@ -943,6 +982,9 @@
         : null,
     statistics: () => ({ ...stats }),
     settings: () => ({ ...settings }),
+    audio: () => window.PokerSound.inspect(),
+    wallet: () => wallet.inspect(),
   });
   applySettings();
+  paintProgress();
 })();

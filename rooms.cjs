@@ -29,7 +29,7 @@ class Rooms {
     const id = [0,1,2,3,4,5].find(i => !room.members.some(m => m.id === i));
     if (id === undefined) throw new RoomError('La sala está llena: máximo 6 jugadores.',409);
     if (room.members.some(m => m.name.toLocaleLowerCase() === name.toLocaleLowerCase())) throw new RoomError('Ese nombre ya está en la sala. Elige otro.',409);
-    const member = {id,name,token:randomBytes(32).toString('base64url'),seen:this.now(),left:false};
+    const member = {id,name,token:randomBytes(32).toString('base64url'),seen:this.now(),left:false,buyIn:0,topups:[]};
     room.members.push(member); room.version++; room.activity=this.now();
     return {code:room.code,token:member.token,state:this.view(room,member)};
   }
@@ -45,7 +45,8 @@ class Rooms {
     if (room.engine) throw new RoomError('La partida ya ha comenzado.',409);
     if (room.members.filter(m => !m.left).length<2) throw new RoomError('Espera a que entre al menos un amigo.',409);
     if (room.members.some(m => this.now()-m.seen>15000)) throw new RoomError('Hay un jugador desconectado. Espera a que vuelva.',409);
-    room.epoch++; room.engine=new Engine({stacks:Array.from({length:6},(_,id) => room.members.some(m => m.id===id && !m.left)?1000:0)});
+    room.epoch++; room.engine=new Engine({stacks:Array.from({length:6},(_,id) => {const m=room.members.find(m=>m.id===id&&!m.left);return m?1000+m.buyIn:0;})});
+    room.members.forEach(m=>{m.buyIn=0;});
     room.engine.players.forEach(p => { const m=room.members.find(m => m.id===p.id); p.name=m?.name||'Asiento libre'; p.profile='human'; p.label=m?'Jugador':'Libre'; p.initials=m?m.name.slice(0,2).toUpperCase():'—'; });
     room.engine.startHand(); this.changed(room);
   }
@@ -69,6 +70,20 @@ class Rooms {
     if (!room.engine) { this.changed(room); return; }
     if (room.engine.players.filter(p => p.stack>0).length<2) throw new RoomError('La partida ha terminado. Vuelve a la sala para jugar otra.',409);
     room.engine.startHand(); this.changed(room);
+  }
+  topup(room,member,data) {
+    if(![500,1000,2000].includes(data.amount)||typeof data.receipt!=='string'||!/^[a-zA-Z0-9-]{16,80}$/.test(data.receipt)) throw new RoomError('Recarga incorrecta.');
+    if(member.topups.some(t=>t.receipt===data.receipt)) return;
+    if(member.topups.length>=1000) throw new RoomError('Se ha alcanzado el límite de recargas de esta sala.',409);
+    if(data.version!==room.version) throw new RoomError('La mesa ha cambiado. Vuelve a intentar la recarga.',409);
+    if(room.engine && room.engine.phase!=='complete') throw new RoomError('Las fichas sólo se añaden entre manos.',409);
+    const checkpoint=`${room.epoch}.${room.engine?.handNumber||0}`;
+    const used=member.topups.filter(t=>t.checkpoint===checkpoint).reduce((n,t)=>n+t.amount,0);
+    if(used+data.amount>2000) throw new RoomError('Máximo 2.000 fichas de recarga por jugador entre manos.',409);
+    member.topups.push({receipt:data.receipt,amount:data.amount,checkpoint});
+    if(room.engine){const p=room.engine.players[member.id];p.stack+=data.amount;p.eliminated=false;room.engine.log('rebuy',member.id,data.amount,`${member.name} recarga ${data.amount} fichas`);}
+    else member.buyIn+=data.amount;
+    this.changed(room);
   }
   reset(room,member) {
     this.hostOnly(room,member);
@@ -123,7 +138,8 @@ class Rooms {
   view(room,member) {
     const e=room.engine, now=this.now(), id=n => n===null||n===undefined?null:(n-member.id+6)%6;
     const state={code:room.code,version:room.version,epoch:room.epoch,isHost:room.host===member.id,
-      members:room.members.filter(m => !m.left).map(m => ({id:id(m.id),name:m.name,host:m.id===room.host,connected:now-m.seen<15000})),
+      members:room.members.filter(m => !m.left).map(m => ({id:id(m.id),name:m.name,host:m.id===room.host,connected:now-m.seen<15000,buyIn:m.buyIn})),
+      topupReceipts:member.topups.map(t=>({receipt:t.receipt,amount:t.amount})),
       turnRemaining:Math.max(0,Math.ceil((room.deadline-now)/1000)),game:null};
     if (!e) return state;
     const complete=e.phase==='complete';

@@ -1,6 +1,6 @@
 {
   "name": "nocturne-poker",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "description": "Texas Hold’em con amigos por código o cinco bots, fichas virtuales",
   "scripts": {

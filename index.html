@@ -15,9 +15,12 @@
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/apple.css" />
+    <link rel="stylesheet" href="css/progression.css" />
     <script defer src="js/cards.js"></script>
     <script defer src="js/engine.js"></script>
     <script defer src="js/ai.js"></script>
+    <script defer src="js/sound.js"></script>
+    <script defer src="js/progression.js"></script>
     <script defer src="js/app.js"></script>
     <script defer src="js/rooms.js"></script>
   </head>
@@ -73,7 +76,7 @@
         <span class="live-dot"></span> Texas Hold’em
       </div>
       <div class="header-actions">
-        <span class="virtual-badge">Fichas virtuales</span
+        <button id="shop-button" class="wallet-button" aria-label="Abrir tienda"><span class="coin-icon">◈</span><strong id="wallet-coins">120</strong><span id="wallet-level">Nivel 1</span></button><span class="virtual-badge">Fichas virtuales</span
         ><button
           class="icon-button sound-button"
           aria-label="Activar sonido"
@@ -106,6 +109,7 @@
           <div><strong>10 / 20</strong><span>CIEGAS</span></div>
           <div><strong>6</strong><span>ASIENTOS</span></div>
         </div>
+        <button id="quick-sound" class="text-button">Probar sonido ♫</button>
         <button class="difficulty-link" data-panel="difficulty">
           <span class="tiny-chip"></span>Dificultad:
           <strong id="lobby-difficulty">Normal</strong><span>⌄</span>
@@ -141,6 +145,7 @@
           ><small>Tu próxima mano te espera.</small>
         </div>
       </div>
+      <section id="lobby-progress" class="lobby-progress" aria-label="Tu progreso"></section>
       <nav class="lobby-nav" aria-label="Menú principal">
         <button data-panel="difficulty">
           <span>01</span> Elegir dificultad <b>↗</b></button
@@ -324,7 +329,7 @@
               <span class="eyebrow" id="result-eyebrow">MANO RESUELTA</span>
               <h2 id="result-title"></h2>
               <p id="result-description"></p>
-              <div id="pot-breakdown"></div>
+              <div id="pot-breakdown"></div><p id="result-reward" class="reward-line"></p>
             </div>
             <button id="next-hand-button" class="button gold-button">
               SIGUIENTE MANO <svg><use href="#i-arrow" /></svg>
@@ -403,5 +408,6 @@
         Activa JavaScript para jugar a Nocturne Poker.
       </div></noscript
     >
+  <div id="reward-celebration" class="reward-celebration" hidden role="status" aria-live="polite"></div><span id="wallet-reserve" hidden>0</span>
   </body>
 </html>

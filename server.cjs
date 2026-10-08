@@ -28,7 +28,7 @@ function createServer({ rooms = new Rooms() } = {}) {
           if (!data||typeof data!=='object'||Array.isArray(data)) throw new RoomError('Petición incorrecta.');
         }
         if (url.pathname==='/api/rooms'&&req.method==='POST') return json(201,rooms.create(data.name));
-        const match=url.pathname.match(/^\/api\/rooms\/([A-Z2-9]{6})\/(join|state|start|action|next|reset|leave)$/i);
+        const match=url.pathname.match(/^\/api\/rooms\/([A-Z2-9]{6})\/(join|state|start|action|next|reset|leave|topup)$/i);
         if (!match) throw new RoomError('Ruta no encontrada.',404);
         const [,code,op]=match;
         if(op==='join'&&req.method==='POST') return json(200,rooms.join(code,data.name));
@@ -36,6 +36,7 @@ function createServer({ rooms = new Rooms() } = {}) {
         const token=String(req.headers.authorization||'').replace(/^Bearer /,'');
         const {room,member}=rooms.auth(code,token);
         if(op==='action') rooms.action(room,member,data);
+        else if(op==='topup') rooms.topup(room,member,data);
         else if(op==='start') rooms.start(room,member);
         else if(op==='next') rooms.next(room,member);
         else if(op==='reset') rooms.reset(room,member);

@@ -22,7 +22,7 @@
       const node=document.createElement('div'); node.className='room-member';
       const avatar=document.createElement('span'); avatar.className='room-member-avatar'; avatar.textContent=member.name.slice(0,2).toUpperCase();
       const name=document.createElement('strong'); name.textContent=member.name+(member.id===0?' (tú)':'');
-      const label=document.createElement('small'); label.textContent=!member.connected?'Ausente · espera hasta 60 s':member.host?'Organizador':'Listo para jugar';
+      const label=document.createElement('small'); label.textContent=!member.connected?'Ausente · espera hasta 60 s':`${member.host?'Organizador':'Listo para jugar'}${member.buyIn?' · '+(1000+member.buyIn)+' fichas':''}`;
       node.append(avatar,name,label); $('room-members').append(node);
     });
     const waiting=!state.game;
@@ -59,7 +59,7 @@
   async function command(op,data={}) {
     if(!session||busy||!online) return;
     busy=true; emit();
-    try { const result=await request(`/api/rooms/${session.code}/${op}`,data,true); if(!state||result.version>=state.version) state=result; online=true; paint(); }
+    try { const result=await request(`/api/rooms/${session.code}/${op}`,data,true); if(!state||result.version>=state.version) state=result; online=true; paint(); return result; }
     catch(error) { $('room-message').textContent=errorText(error); window.dispatchEvent(new CustomEvent('poker-room-error',{detail:errorText(error)})); }
     finally { busy=false; emit(); }
   }
@@ -103,6 +103,6 @@
     try { await request(`/api/rooms/${session.code}/leave`,{},true); clear(); }
     catch(error) { busy=false; window.dispatchEvent(new CustomEvent('poker-room-error',{detail:errorText(error)})); emit(); }
   }));
-  window.PokerRoom=Object.freeze({action:(type,total)=>command('action',{type,total,version:state.version}),next:()=>command('next'),reset:()=>command('reset'),isHost:()=>!!state?.isHost});
+  window.PokerRoom=Object.freeze({action:(type,total)=>command('action',{type,total,version:state.version}),topup:(amount,receipt)=>command('topup',{amount,receipt,version:state.version}),next:()=>command('next'),reset:()=>command('reset'),isHost:()=>!!state?.isHost});
   try { const stored=JSON.parse(sessionStorage.getItem('nocturne.room.v2')); if(stored?.code&&stored?.token&&location.protocol!=='file:') {session=stored;stopped=false;poll();} } catch {}
 })();
