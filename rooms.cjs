@@ -2,7 +2,7 @@ const { randomBytes, randomInt } = require('node:crypto');
 const { Engine } = require('./engine.js');
 class RoomError extends Error { constructor(message, status = 400) { super(message); this.status = status; } }
 class Rooms {
-  constructor({ now = Date.now, turnMs = 60000, transitionMs = 1000 } = {}) {
+  constructor({ now = Date.now, turnMs = 30000, transitionMs = 1000 } = {}) {
     this.rooms = new Map(); this.now = now; this.turnMs = turnMs; this.transitionMs = transitionMs;
   }
   name(value) {

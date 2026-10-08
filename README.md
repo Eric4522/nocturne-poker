@@ -4,7 +4,7 @@ Texas Hold’em con fichas virtuales, salas privadas para 2-6 amigos y modo indi
 
 ## Jugar con amigos
 
-Todos abren la misma dirección del servicio. Una persona crea la sala y comparte el código; los demás eligen Unirse con código. El organizador empieza y avanza a la siguiente mano. 1.000 fichas iniciales, ciegas 10/20 y 60 segundos por turno.
+Todos abren la misma dirección del servicio. Una persona crea la sala y comparte el código; los demás eligen Unirse con código. El organizador empieza y avanza a la siguiente mano. 1.000 fichas iniciales, ciegas 10/20 y 30 segundos por turno.
 
 El servidor valida cada acción, reparte y decide los botes. Cada cliente recibe únicamente sus cartas hasta el showdown. Recargar la misma pestaña recupera el asiento. La sala sigue activa al cambiar de pestaña. Salas en memoria: reiniciar el servicio elimina las partidas.
 

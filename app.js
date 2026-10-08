@@ -756,7 +756,7 @@
       const rows = $("panel-content").querySelectorAll('.setting-row');
       rows[2]?.setAttribute('hidden','');
       const footnote=$("panel-content").querySelector('.panel-footnote');
-      if(footnote) footnote.textContent='Las salas siguen activas mientras ves los ajustes. Tu asiento se recupera al recargar. Cada turno dura 60 segundos.';
+      if(footnote) footnote.textContent='Las salas siguen activas mientras ves los ajustes. Tu asiento se recupera al recargar. Cada turno dura 30 segundos.';
     }
     $("panel-dialog").showModal();
     if (engine) render();
