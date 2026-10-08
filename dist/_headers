@@ -1,0 +1,18 @@
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/fonts/*
+  Cache-Control: public, max-age=86400
+
+/styles.css
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/app.js
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/sitemap.xml
+  Cache-Control: public, max-age=3600
+
+/404.html
+  X-Robots-Tag: noindex
