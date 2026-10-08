@@ -24,3 +24,5 @@ No necesita instalación de dependencias. Node genera las páginas informativas,
 Después de cambiar de dominio, regenerar y desplegar con el nuevo `SITE_URL` para actualizar conjuntamente canonical, sitemap y datos estructurados. Las respuestas se calculan en el navegador y no se guardan.
 
 La tipografía DM Sans se aloja localmente bajo licencia OFL (`dist/fonts/OFL.txt`).
+
+Los logos de los 12 partidos se sirven localmente desde `dist/party-logos/`. Las fuentes, autores y licencias de los archivos originales están en `content/party-logo-sources.json`. Se conservan los colores y las proporciones originales.
