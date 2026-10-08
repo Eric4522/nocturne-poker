@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#f5f5f7" />
+    <meta
+      name="description"
+      content="Nocturne Poker. Texas Hold'em con amigos por código o contra cinco rivales. Fichas virtuales."
+    />
+    <title>Nocturne · Texas Hold'em</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/apple.css" />
+    <script defer src="js/cards.js"></script>
+    <script defer src="js/engine.js"></script>
+    <script defer src="js/ai.js"></script>
+    <script defer src="js/app.js"></script>
+    <script defer src="js/rooms.js"></script>
+  </head>
+  <body>
+    <svg class="icon-library" aria-hidden="true">
+      <defs>
+        <symbol id="i-arrow" viewBox="0 0 24 24">
+          <path d="M4 12h15m-6-6 6 6-6 6" />
+        </symbol>
+        <symbol id="i-sound" viewBox="0 0 24 24">
+          <path
+            d="M11 4 6 8H3v8h3l5 4V4ZM15 8c3 2 3 6 0 8m3-11c5 4 5 10 0 14"
+          />
+        </symbol>
+        <symbol id="i-mute" viewBox="0 0 24 24">
+          <path d="M11 4 6 8H3v8h3l5 4V4Zm5 5 6 6m0-6-6 6" />
+        </symbol>
+        <symbol id="i-settings" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="m10 3-1 3-3 1-3-1-1 4 3 2v2l-2 2 2 4 3-1 2 2 1 2 4-1v-3l3-2 3 1 1-4-3-2v-2l2-2-2-4-3 1-2-2V2Z"
+          />
+        </symbol>
+        <symbol id="i-pause" viewBox="0 0 24 24">
+          <path d="M8 5v14M16 5v14" />
+        </symbol>
+        <symbol id="i-play" viewBox="0 0 24 24">
+          <path d="m7 4 14 8-14 8Z" />
+        </symbol>
+        <symbol id="i-back" viewBox="0 0 24 24">
+          <path d="M20 12H5m6-6-6 6 6 6" />
+        </symbol>
+        <symbol id="i-crown" viewBox="0 0 24 24">
+          <path d="m3 7 5 4 4-7 4 7 5-4-2 12H5Z" />
+        </symbol>
+        <symbol id="i-close" viewBox="0 0 24 24">
+          <path d="m6 6 12 12M18 6 6 18" />
+        </symbol>
+      </defs>
+    </svg>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <header class="app-header">
+      <a
+        class="brand"
+        href="#"
+        id="brand-home"
+        aria-label="Nocturne, menú principal"
+        ><span class="brand-mark">♠</span
+        ><span>NOCTURNE<small>Poker</small></span></a
+      >
+      <div class="header-middle">
+        <span class="live-dot"></span> Texas Hold’em
+      </div>
+      <div class="header-actions">
+        <span class="virtual-badge">Fichas virtuales</span
+        ><button
+          class="icon-button sound-button"
+          aria-label="Activar sonido"
+          title="Sonido opcional"
+        >
+          <svg><use href="#i-mute" /></svg></button
+        ><button
+          class="icon-button"
+          data-panel="settings"
+          aria-label="Configuración"
+        >
+          <svg><use href="#i-settings" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="lobby" class="lobby">
+      <div class="lobby-copy">
+        <div class="eyebrow"><span></span> TEXAS HOLD'EM · NO LIMIT</div>
+        <h1>Una buena mano.<br /><em>Mejor en compañía.</em></h1>
+        <p class="lobby-description">
+          Juega con tus amigos o desafía a cinco rivales.<br class="desktop-break" /> Tú eliges la mesa.
+        </p>
+        <div class="lobby-actions">
+          <button id="play-button" class="button gold-button"><span>Jugar solo</span></button>
+          <button id="friends-button" class="button outline-button">Jugar con amigos</button>
+        </div>
+        <div class="lobby-facts">
+          <div><strong>1.000</strong><span>FICHAS INICIALES</span></div>
+          <div><strong>10 / 20</strong><span>CIEGAS</span></div>
+          <div><strong>6</strong><span>ASIENTOS</span></div>
+        </div>
+        <button class="difficulty-link" data-panel="difficulty">
+          <span class="tiny-chip"></span>Dificultad:
+          <strong id="lobby-difficulty">Normal</strong><span>⌄</span>
+        </button>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="art-halo"></div>
+        <div class="art-orbit orbit-1"></div>
+        <div class="art-orbit orbit-2"></div>
+        <div class="art-felt"><span>NOCTURNE</span></div>
+        <div class="hero-card hero-card-back">
+          <div class="back-ornament">N</div>
+        </div>
+        <div class="hero-card hero-card-king">
+          <span class="hero-corner">K<small>♥</small></span>
+          <div class="king-art">♛</div>
+          <span class="hero-corner bottom">K<small>♥</small></span>
+        </div>
+        <div class="hero-card hero-card-ace">
+          <span class="hero-corner">A<small>♠</small></span>
+          <div class="hero-spade">♠</div>
+          <span class="hero-corner bottom">A<small>♠</small></span>
+        </div>
+        <div class="hero-stack stack-green">
+          <i></i><i></i><i></i><i></i><i></i><i></i><b>100</b>
+        </div>
+        <div class="hero-stack stack-gold">
+          <i></i><i></i><i></i><i></i><b>500</b>
+        </div>
+        <div class="hero-single-chip">N</div>
+        <div class="art-caption">
+          <span>♠ &nbsp; Nocturne Poker</span
+          ><small>Tu próxima mano te espera.</small>
+        </div>
+      </div>
+      <nav class="lobby-nav" aria-label="Menú principal">
+        <button data-panel="difficulty">
+          <span>01</span> Elegir dificultad <b>↗</b></button
+        ><button data-panel="settings">
+          <span>02</span> Configuración <b>↗</b></button
+        ><button data-panel="rules">
+          <span>03</span> Reglas del póker <b>↗</b></button
+        ><button data-panel="stats">
+          <span>04</span> Estadísticas <b>↗</b>
+        </button>
+      </nav>
+      <footer class="lobby-footer">
+        <span>Sólo fichas virtuales.</span
+        ><span>Texas Hold’em · No limit</span>
+      </footer>
+    </main>
+
+    <main id="room-lobby" class="room-lobby" hidden>
+      <span class="eyebrow">Tu sala privada</span>
+      <h1>La mesa está lista.</h1>
+      <p>Comparte el código con tus amigos. Cuando estéis, empieza la partida.</p>
+      <button id="copy-room-code" class="room-code" aria-label="Copiar código de sala"><span id="room-code">------</span><small>Copiar código</small></button>
+      <p id="room-connection" role="status">Conectado</p>
+      <div id="room-members" class="room-members" aria-label="Jugadores en la sala"></div>
+      <p class="room-rules">De 2 a 6 jugadores · 1.000 fichas cada uno · Ciegas 10 / 20</p>
+      <div class="room-lobby-actions"><button id="room-start" class="button gold-button" disabled>Empezar partida</button><button class="button outline-button" data-room-leave>Salir de la sala</button></div>
+      <p id="room-message" role="status">Esperando a tus amigos…</p>
+    </main>
+    <div id="room-game-bar" class="room-game-bar" hidden><button id="copy-game-code" class="text-button">Sala <strong id="game-room-code"></strong></button><span id="room-turn-clock" role="timer"></span><button class="text-button" data-room-leave>Salir de la sala</button></div>
+    <main id="game" class="game" hidden>
+      <div class="game-heading">
+        <div>
+          <button id="lobby-button" class="text-button">
+            <svg><use href="#i-back" /></svg> Menú</button
+          ><span class="game-divider"></span
+          ><span class="eyebrow">SALÓN PRIVADO</span>
+        </div>
+        <div class="game-meta">
+          <span id="hand-number">MANO 01</span><span class="meta-dot">·</span
+          ><span id="game-difficulty">NORMAL</span
+          ><button
+            id="pause-button"
+            class="icon-button"
+            aria-label="Pausar partida"
+          >
+            <svg><use href="#i-pause" /></svg>
+          </button>
+        </div>
+      </div>
+      <div class="game-layout">
+        <section class="play-area" aria-label="Mesa de póker">
+          <div class="table-scene" id="table-scene">
+            <div class="table-shadow"></div>
+            <div class="table-wood">
+              <div class="table-rail">
+                <div class="table-felt">
+                  <div class="felt-line"></div>
+                  <div class="felt-brand">
+                    NOCTURNE<small>TEXAS HOLD'EM · 10 / 20</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="deck-box" id="deck-box">
+              <div class="mini-deck">N</div>
+              <span>♠</span>
+            </div>
+            <div class="pot-box">
+              <span class="pot-label" id="pot-label">BOTE TOTAL</span
+              ><strong id="pot-value">30</strong>
+              <div class="pot-chips" aria-hidden="true">
+                <i class="chip chip-green"></i><i class="chip chip-gold"></i
+                ><i class="chip chip-red"></i><i class="chip chip-green"></i>
+              </div>
+              <small id="side-pots"></small>
+            </div>
+            <div
+              id="board"
+              class="community-cards"
+              aria-label="Cartas comunitarias"
+            ></div>
+            <div class="street-badge" id="street-badge">PREFLOP</div>
+            <div id="seats" class="seats"></div>
+            <div
+              id="motion-layer"
+              class="motion-layer"
+              aria-hidden="true"
+            ></div>
+            <div id="paused-overlay" class="paused-overlay" hidden>
+              <span>Ⅱ</span><strong>Un respiro.</strong
+              ><button id="resume-button" class="button gold-button">
+                CONTINUAR
+              </button>
+            </div>
+          </div>
+          <div class="table-bottom">
+            <span id="hero-hand-label">Tus cartas privadas</span
+            ><span
+              ><i class="live-dot"></i>
+              <span id="remaining-players">6 jugadores en la mesa</span></span
+            >
+          </div>
+          <section
+            id="action-console"
+            class="action-console"
+            aria-label="Controles de tu turno"
+          >
+            <div class="turn-info">
+              <div>
+                <span class="eyebrow" id="turn-label">TU TURNO</span>
+                <h2 id="turn-description">La mesa espera tu decisión.</h2>
+              </div>
+              <div class="call-detail">
+                <span>PARA IGUALAR</span
+                ><strong id="call-value">20 <small>fichas</small></strong>
+              </div>
+            </div>
+            <div id="raise-controls" class="raise-controls">
+              <span class="raise-caption"
+                >SUBIR A <strong id="raise-value">40</strong></span
+              ><input
+                id="raise-slider"
+                type="range"
+                min="40"
+                max="1000"
+                value="40"
+                step="1"
+                aria-label="Cantidad total de la subida"
+              />
+              <div class="raise-presets">
+                <button data-size="min">MÍN.</button
+                ><button data-size="half">½ BOTE</button
+                ><button data-size="pot">BOTE</button
+                ><button data-size="double">2×</button>
+              </div>
+            </div>
+            <div class="action-buttons">
+              <button
+                id="action-fold"
+                class="button fold-button"
+                data-action="fold"
+              >
+                FOLD <small>Retirarse</small></button
+              ><button
+                id="action-check"
+                class="button check-button"
+                data-action="check"
+              >
+                CHECK <small>Pasar</small></button
+              ><button
+                id="action-call"
+                class="button call-button"
+                data-action="call"
+              >
+                CALL <small id="call-button-value">20 fichas</small></button
+              ><button
+                id="action-raise"
+                class="button gold-button"
+                data-action="raise"
+              >
+                RAISE <small id="raise-button-value">a 40</small></button
+              ><button
+                id="action-allin"
+                class="button allin-button"
+                data-action="allin"
+              >
+                ALL-IN <small id="allin-value">1.000 fichas</small>
+              </button>
+            </div>
+          </section>
+          <section
+            id="result-panel"
+            class="result-panel"
+            hidden
+            aria-live="polite"
+          >
+            <div class="result-icon">
+              <svg><use href="#i-crown" /></svg>
+            </div>
+            <div class="result-copy">
+              <span class="eyebrow" id="result-eyebrow">MANO RESUELTA</span>
+              <h2 id="result-title"></h2>
+              <p id="result-description"></p>
+              <div id="pot-breakdown"></div>
+            </div>
+            <button id="next-hand-button" class="button gold-button">
+              SIGUIENTE MANO <svg><use href="#i-arrow" /></svg>
+            </button>
+          </section>
+        </section>
+        <aside class="game-sidebar">
+          <div class="sidebar-heading">
+            <span class="eyebrow">EN ESTA MESA</span><span>♠</span>
+          </div>
+          <div class="bankroll-card">
+            <span>TU STACK</span
+            ><strong id="hero-stack">1.000 <small>FICHAS</small></strong>
+            <div class="bankroll-meter"><i id="stack-meter"></i></div>
+            <small>Todo el riesgo. Ningún dinero real.</small>
+          </div>
+          <div class="street-timeline" id="street-timeline">
+            <span class="current">PRE</span><i></i><span>FLOP</span><i></i
+            ><span>TURN</span><i></i><span>RIVER</span>
+          </div>
+          <div class="history-heading">
+            <h3>La acción</h3>
+            <span class="live-dot"></span>
+          </div>
+          <ol
+            id="action-history"
+            class="action-history"
+            aria-live="polite"
+            aria-label="Últimas acciones"
+          ></ol>
+          <div class="sidebar-note">
+            <span>♧</span>
+            <p>La paciencia también<br />es una buena jugada.</p>
+          </div>
+          <button class="text-button sidebar-rules" data-panel="rules">
+            Consultar reglas <span>↗</span>
+          </button>
+        </aside>
+      </div>
+      <footer class="game-footer">
+        <span id="status-message" role="status" aria-live="polite"
+          >Repartiendo cartas…</span
+        ><span>VIRTUAL CHIPS ONLY</span>
+      </footer>
+    </main>
+
+    <dialog id="panel-dialog" class="panel-dialog">
+      <div class="dialog-heading">
+        <a class="brand mini-brand"
+          ><span class="brand-mark">♠</span><span>NOCTURNE</span></a
+        ><button
+          id="close-panel"
+          class="icon-button"
+          aria-label="Cerrar ventana"
+        >
+          <svg><use href="#i-close" /></svg>
+        </button>
+      </div>
+      <div id="panel-content"></div>
+    </dialog>
+    <dialog id="room-dialog" class="panel-dialog room-dialog">
+      <div class="dialog-heading"><span class="brand">Nocturne</span><button id="room-dialog-close" class="icon-button" aria-label="Cerrar sala">×</button></div>
+      <h2>Tu gente. Tu mesa.</h2><p class="panel-intro">Crea una partida o entra con el código de un amigo.</p>
+      <div class="room-tabs" role="group" aria-label="Opciones de sala"><button id="room-create-tab" aria-pressed="true">Crear sala</button><button id="room-join-tab" aria-pressed="false">Unirse con código</button></div>
+      <form id="room-form">
+        <label for="room-name">Tu nombre</label><input id="room-name" autocomplete="nickname" maxlength="20" required placeholder="¿Cómo te llamas?" />
+        <div id="room-code-field" hidden><label for="join-code">Código de sala</label><input id="join-code" autocomplete="off" maxlength="6" placeholder="ABC234" pattern="[A-Za-z2-9]{6}" /></div>
+        <p id="room-form-error" class="form-error" role="alert"></p>
+        <button id="room-submit" class="button gold-button" type="submit">Crear sala</button>
+      </form>
+      <p class="panel-footnote" id="room-server-note">Todos debéis abrir la misma dirección del juego.</p>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <noscript
+      ><div class="no-script">
+        Activa JavaScript para jugar a Nocturne Poker.
+      </div></noscript
+    >
+  </body>
+</html>
