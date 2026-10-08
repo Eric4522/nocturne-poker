@@ -82,27 +82,26 @@ const observer='IntersectionObserver' in window?new IntersectionObserver(entries
 // Progressive enhancement for agent-assisted completion. The interface works without WebMCP.
 if(document.modelContext?.registerTool){const lifecycle=new AbortController();const register=tool=>{try{Promise.resolve(document.modelContext.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{}};const state=()=>({view:currentView,mode,total:activeQuestions.length,answered:answers.filter(a=>a!==null).length,currentQuestion:currentView==='quiz'?{number:index+1,text:activeQuestions[index].text,value:answers[index]}:null,ranking:currentView==='results'?lastRanking.map(p=>({party:p.name,percent:Math.round(p.score)})):null});register({name:'read_political_test',description:'Read the current test question, progress, or completed ranking.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},execute:()=>state()});register({name:'start_political_test',description:'Start a new 12-question quick or 36-question full test. Replaces any active answers.',inputSchema:{type:'object',properties:{mode:{type:'string',enum:['quick','full']}},required:['mode'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute:input=>{if(!input||!['quick','full'].includes(input.mode))throw new Error('Invalid mode');startTest(input.mode);return state();}});register({name:'answer_current_question',description:'Select a value from 1 to 5 for the current question and continue. The final answer completes the test and displays the ranking.',inputSchema:{type:'object',properties:{value:{type:'integer',minimum:1,maximum:5}},required:['value'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute:input=>{if(!input||!Number.isInteger(input.value)||input.value<1||input.value>5)throw new Error('Invalid answer');selectAnswer(input.value);nextQuestion();return state();}});window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});}
 
-// Attach only the selected video when its player enters the viewport.
+// Decorative motion: one responsive asset, muted and without player interaction.
 (()=>{
  const video=el('connection-video');if(!video)return;
  const mobile=window.matchMedia('(max-width:767px)');
  const reducedMotion=window.matchMedia('(prefers-reduced-motion:reduce)');
- let visible=false,autoplayAttempted=false,selectedSource='';
+ let visible=false,selectedSource='';
  const loadSelected=()=>{
   if(video.getAttribute('src')===selectedSource)return;
   video.src=selectedSource;video.load();
  };
  const playWhenVisible=()=>{
-  if(!visible||el('home').hidden||document.hidden)return;
-  loadSelected();
-  if(reducedMotion.matches||autoplayAttempted)return;
-  autoplayAttempted=true;video.play().catch(()=>{});
+  if(!visible||el('home').hidden||document.hidden||reducedMotion.matches)return;
+  loadSelected();if(video.paused)video.play().catch(()=>{});
  };
  const selectVideo=()=>{
   const layout=mobile.matches?'mobile':'desktop';
   const source=video.dataset[layout+'Src'];if(selectedSource===source)return;
   video.pause();selectedSource=source;video.dataset.layout=layout;
-  video.poster=video.dataset[layout+'Poster'];video.muted=true;autoplayAttempted=false;
+  video.poster=video.dataset[layout+'Poster'];video.defaultMuted=true;
+  video.muted=true;video.volume=0;video.controls=false;
   // Unload the previous format before selecting its replacement.
   if(video.hasAttribute('src')){video.removeAttribute('src');video.load();}
   playWhenVisible();
@@ -113,9 +112,8 @@ if(document.modelContext?.registerTool){const lifecycle=new AbortController();co
    visible=entries[0].isIntersecting;
    if(visible)playWhenVisible();else video.pause();
   },{threshold:.15});visibility.observe(video);
- }else{loadSelected();}
- video.addEventListener('play',()=>{autoplayAttempted=true;});
- reducedMotion.addEventListener('change',()=>{if(reducedMotion.matches)video.pause();});
- document.addEventListener('visibilitychange',()=>{if(document.hidden)video.pause();});
+ }else{visible=true;playWhenVisible();}
+ reducedMotion.addEventListener('change',()=>{if(reducedMotion.matches)video.pause();else playWhenVisible();});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)video.pause();else playWhenVisible();});
  window.addEventListener('pagehide',()=>video.pause());
 })();
