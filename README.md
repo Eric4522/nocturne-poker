@@ -1,5 +1,7 @@
 # Conexión Política
 
+Web publicada: https://conexion-politica.onrender.com/
+
 Sitio estático de afinidad política para España, con cuestionarios de 12 y 36 preguntas. Los perfiles son editoriales e ilustrativos; los valores y la fórmula se publican en la metodología.
 
 ## Generar las páginas
@@ -14,7 +16,7 @@ No necesita instalación de dependencias. Node genera las páginas informativas,
 ## Render
 
 - Servicio: Static Site.
-- Rama: main.
+- Rama: conexion-politica.
 - Build Command: `node scripts/build-seo.cjs`.
 - Publish Directory: `dist`.
 - Render proporciona `RENDER_EXTERNAL_URL` automáticamente; el generador la usa para canonical, sitemap y datos estructurados. Para un dominio propio, configurar `SITE_URL` con su dirección HTTPS exacta.
