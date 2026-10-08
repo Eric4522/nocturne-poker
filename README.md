@@ -26,3 +26,5 @@ Después de cambiar de dominio, regenerar y desplegar con el nuevo `SITE_URL` pa
 La tipografía DM Sans se aloja localmente bajo licencia OFL (`dist/fonts/OFL.txt`).
 
 Los logos de los 12 partidos se sirven localmente desde `dist/party-logos/`. Las fuentes, autores y licencias de los archivos originales están en `content/party-logo-sources.json`. Se conservan los colores y las proporciones originales.
+
+La portada integra los vídeos originales a 60 fps en un único reproductor: versión vertical hasta 767 px y horizontal desde 768 px. Los MP4 se alojan en `dist/videos/`, mantienen el audio y solo se reproducen automáticamente al entrar en pantalla, silenciados. Con movimiento reducido se reproducen manualmente. Cambiar de test detiene el vídeo.

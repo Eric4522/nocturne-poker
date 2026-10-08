@@ -60,7 +60,7 @@ const labels=['Totalmente en desacuerdo','En desacuerdo','Ni de acuerdo ni en de
 let mode=null,activeQuestions=[],answers=[],index=0,currentView='home',lastRanking=[];
 const el=id=>document.getElementById(id);
 const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function show(view){currentView=view;['home','quiz','results'].forEach(v=>el(v).hidden=v!==view);window.scrollTo({top:0,behavior:'instant'});}
+function show(view){if(view!=='home')el('connection-video')?.pause();currentView=view;['home','quiz','results'].forEach(v=>el(v).hidden=v!==view);window.scrollTo({top:0,behavior:'instant'});}
 function startTest(testMode){if(!['quick','full'].includes(testMode))throw new Error('Modalidad inválida.');mode=testMode;activeQuestions=testMode==='quick'?quickIds.map(i=>questions[i]):questions;answers=Array(activeQuestions.length).fill(null);index=0;lastRanking=[];show('quiz');renderQuestion();}
 function renderQuestion(){const q=activeQuestions[index];const completed=answers.filter(a=>a!==null).length;el('quiz').innerHTML=`<div class="quiz-top"><button class="text-button" id="exit-quiz">‹ Volver al inicio</button><span>Test ${mode==='quick'?'rápido':'completo'} · ${activeQuestions.length} preguntas</span></div><div class="quiz-progress" role="progressbar" aria-label="Preguntas respondidas" aria-valuemin="0" aria-valuemax="${activeQuestions.length}" aria-valuenow="${completed}"><div style="width:${completed/activeQuestions.length*100}%"></div></div><div class="quiz-content"><span class="question-topic">${topics[q.topic]}</span><h1 id="question-heading" tabindex="-1">${q.text}</h1><p class="quiz-instruction">¿Hasta qué punto estás de acuerdo?</p><div class="rating-options" role="radiogroup" aria-labelledby="question-heading">${labels.map((label,i)=>`<button type="button" class="rating-button" role="radio" aria-checked="${answers[index]===i+1}" data-answer="${i+1}" aria-label="${i+1}: ${label}" tabindex="${answers[index]===i+1||answers[index]===null&&i===0?0:-1}"><strong>${i+1}</strong><span>${label}</span></button>`).join('')}</div><p class="rating-detail" aria-live="polite">${answers[index]===null?'1: totalmente en desacuerdo · 5: totalmente de acuerdo':labels[answers[index]-1]}</p><div class="quiz-controls"><button class="button light-button" id="previous-question" ${index===0?'disabled':''}>Anterior</button><span class="answered-counter" aria-live="polite">Pregunta ${index+1} de ${activeQuestions.length}</span><button class="button dark-button" id="next-question" ${answers[index]===null?'disabled':''}>${index===activeQuestions.length-1?'Ver resultados':'Continuar'}</button></div></div>`;
 el('exit-quiz').onclick=()=>el('exit-dialog').showModal();el('previous-question').onclick=()=>navigate(-1);el('next-question').onclick=nextQuestion;
@@ -81,3 +81,41 @@ for(const d of document.querySelectorAll('dialog'))d.addEventListener('click',e=
 const observer='IntersectionObserver' in window?new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target);}}),{threshold:.15}):null;const howStrip=document.querySelector('.how-strip');if(observer&&howStrip){howStrip.classList.add('reveal');observer.observe(howStrip);}
 // Progressive enhancement for agent-assisted completion. The interface works without WebMCP.
 if(document.modelContext?.registerTool){const lifecycle=new AbortController();const register=tool=>{try{Promise.resolve(document.modelContext.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{}};const state=()=>({view:currentView,mode,total:activeQuestions.length,answered:answers.filter(a=>a!==null).length,currentQuestion:currentView==='quiz'?{number:index+1,text:activeQuestions[index].text,value:answers[index]}:null,ranking:currentView==='results'?lastRanking.map(p=>({party:p.name,percent:Math.round(p.score)})):null});register({name:'read_political_test',description:'Read the current test question, progress, or completed ranking.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},execute:()=>state()});register({name:'start_political_test',description:'Start a new 12-question quick or 36-question full test. Replaces any active answers.',inputSchema:{type:'object',properties:{mode:{type:'string',enum:['quick','full']}},required:['mode'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute:input=>{if(!input||!['quick','full'].includes(input.mode))throw new Error('Invalid mode');startTest(input.mode);return state();}});register({name:'answer_current_question',description:'Select a value from 1 to 5 for the current question and continue. The final answer completes the test and displays the ranking.',inputSchema:{type:'object',properties:{value:{type:'integer',minimum:1,maximum:5}},required:['value'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute:input=>{if(!input||!Number.isInteger(input.value)||input.value<1||input.value>5)throw new Error('Invalid answer');selectAnswer(input.value);nextQuestion();return state();}});window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});}
+
+// Attach only the selected video when its player enters the viewport.
+(()=>{
+ const video=el('connection-video');if(!video)return;
+ const mobile=window.matchMedia('(max-width:767px)');
+ const reducedMotion=window.matchMedia('(prefers-reduced-motion:reduce)');
+ let visible=false,autoplayAttempted=false,selectedSource='';
+ const loadSelected=()=>{
+  if(video.getAttribute('src')===selectedSource)return;
+  video.src=selectedSource;video.load();
+ };
+ const playWhenVisible=()=>{
+  if(!visible||el('home').hidden||document.hidden)return;
+  loadSelected();
+  if(reducedMotion.matches||autoplayAttempted)return;
+  autoplayAttempted=true;video.play().catch(()=>{});
+ };
+ const selectVideo=()=>{
+  const layout=mobile.matches?'mobile':'desktop';
+  const source=video.dataset[layout+'Src'];if(selectedSource===source)return;
+  video.pause();selectedSource=source;video.dataset.layout=layout;
+  video.poster=video.dataset[layout+'Poster'];video.muted=true;autoplayAttempted=false;
+  // Unload the previous format before selecting its replacement.
+  if(video.hasAttribute('src')){video.removeAttribute('src');video.load();}
+  playWhenVisible();
+ };
+ selectVideo();mobile.addEventListener('change',selectVideo);
+ if('IntersectionObserver' in window){
+  const visibility=new IntersectionObserver(entries=>{
+   visible=entries[0].isIntersecting;
+   if(visible)playWhenVisible();else video.pause();
+  },{threshold:.15});visibility.observe(video);
+ }else{loadSelected();}
+ video.addEventListener('play',()=>{autoplayAttempted=true;});
+ reducedMotion.addEventListener('change',()=>{if(reducedMotion.matches)video.pause();});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)video.pause();});
+ window.addEventListener('pagehide',()=>video.pause());
+})();
