@@ -429,17 +429,65 @@
       "sources": [
         {
           "title": "Propuestas publicadas en la web oficial",
-          "url": "https://democracia21.es/"
+          "url": "https://democracia21.es/",
+          "kind": "primary"
         },
         {
           "title": "Estatutos",
-          "url": "https://democracia21.es/docs/estatutos-democracia21.pdf"
+          "url": "https://democracia21.es/docs/estatutos-democracia21.pdf",
+          "kind": "primary"
         },
         {
           "title": "Código ético",
-          "url": "https://democracia21.es/docs/codigo-etico-democracia21.pdf"
+          "url": "https://democracia21.es/docs/codigo-etico-democracia21.pdf",
+          "kind": "primary"
+        },
+        {
+          "title": "Política Electoral: propuestas públicas de D21 para 2026 (fuente secundaria)",
+          "url": "https://www.politicaelectoral.com/es/espana/generales-2026/nacional/democracia-21",
+          "kind": "secondary",
+          "reviewedAt": "2026-10-11"
         }
-      ]
+      ],
+      "publicPolicyContext": {
+        "reviewedAt": "2026-10-11",
+        "sourceURL": "https://www.politicaelectoral.com/es/espana/generales-2026/nacional/democracia-21",
+        "sourceName": "Política Electoral",
+        "status": "Resumen de posiciones públicas; la fuente indica que el programa electoral oficial aún no se ha publicado.",
+        "electoralScope": "La ficha de Política Electoral sitúa su participación prevista para las generales de 2026 en Madrid y Barcelona. Es información de esa fuente sobre los planes de la formación, no una certificación de candidaturas proclamadas.",
+        "sections": [
+          {
+            "title": "Economía y emprendimiento",
+            "topicSlug": "economia-fiscalidad",
+            "summary": "La ficha recoge una reducción de cargas fiscales compatible con mantener los servicios públicos, menos obstáculos para empresas y autónomos y aumentos salariales ligados a la productividad. También relaciona la eficiencia del gasto con nombramientos por mérito y menos asesores.",
+            "scoringNote": "La simplificación de trámites refuerza el apoyo ya asignado a la afirmación 9. Estas propuestas no fijan una respuesta sobre privatizaciones, impuestos a rentas altas o salario mínimo."
+          },
+          {
+            "title": "Educación",
+            "topicSlug": "educacion-sanidad",
+            "summary": "La referencia describe una universidad con titulaciones más adaptables y mayor conexión práctica con empresas e instituciones. Vincula esas medidas con la movilidad social y las oportunidades educativas.",
+            "scoringNote": "La flexibilidad de los grados no establece por sí sola una posición sobre becas, financiación escolar o gestión sanitaria. La posición existente sobre formación digital procede de la web oficial."
+          },
+          {
+            "title": "Vivienda",
+            "topicSlug": "vivienda",
+            "summary": "Según la ficha, D21 plantea exenciones de impuestos asociados a la vivienda para menores de 35 años, nuevos desarrollos con un marco estable durante diez años y un fondo de vivienda protegida y asequible con fondos europeos. La referencia recoge el objetivo de un alquiler de 350 euros para ingresos de 1.300 euros mensuales y una propuesta de destinar 10.000 millones de euros a ese fondo.",
+            "scoringNote": "Una meta de precio no equivale a limitar legalmente alquileres; vivienda protegida no define su titularidad pública; estabilidad normativa no equivale a agilizar licencias. No se añaden puntuaciones a esas afirmaciones sin propuestas que respondan a su enunciado."
+          },
+          {
+            "title": "Inmigración",
+            "topicSlug": "inmigracion",
+            "summary": "Política Electoral recoge una valoración favorable de la inmigración y un planteamiento de entradas, permanencia y salida sujetas a reglas, con llegada ordenada de trabajadores y rechazo de discursos xenófobos.",
+            "scoringNote": "La ficha no concreta vías de regularización, acceso a prestaciones ni acogida de refugiados. Tampoco permite asignar automáticamente un grado de apoyo a facilitar toda inmigración legal."
+          },
+          {
+            "title": "Justicia y regeneración institucional",
+            "topicSlug": "instituciones",
+            "summary": "La referencia describe elección por los jueces de los vocales judiciales del CGPJ, rendición de cuentas parlamentaria de la Fiscalía, órganos judiciales especializados en corrupción y eliminación de aforamientos. Añade límites de dos mandatos, reducción del 90 % de asesores y menos subvenciones a partidos y fundaciones.",
+            "scoringNote": "Los órganos especializados en corrupción refuerzan el apoyo ya asignado a la afirmación 42. La elección del CGPJ, los aforamientos y los límites de mandatos no tienen una afirmación equivalente en el cuestionario actual."
+          }
+        ]
+      }
     }
   ],
   "questions": [

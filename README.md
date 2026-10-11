@@ -55,3 +55,9 @@ El barómetro describe valores del modelo y no inventa datos de usuarios. Inform
 `dist/share.js` genera tarjetas PNG localmente: Stories 1080 × 1920 y cuadrado 1080 × 1080. Incluyen hasta tres perfiles, cobertura y el aviso editorial. La opción de privacidad oculta partidos y porcentajes en la imagen y en el resumen de WhatsApp. El enlace compartido lleva al test y no codifica resultados. Se utiliza Web Share con archivos cuando el navegador lo admite; en los demás, se descarga el PNG. Los informes CSV siguen incluyendo respuestas. No se guarda el test ni la tarjeta en un backend.
 
 Los resultados explican coincidencias y diferencias concretas del perfil elegido. La nueva portada y las guías mantienen tipografía y recursos locales; las animaciones respetan movimiento reducido. Atajos del cuestionario: 1–5 para responder y Enter desde el enunciado para continuar.
+
+## Contexto adicional de Democracia21
+
+La ficha de D21 incorpora la referencia de Política Electoral aportada por el propietario y un resumen original de economía, educación, vivienda, inmigración y justicia. Se identifica como fuente secundaria, con fecha de consulta y un apartado por tema que explica su correspondencia con el test. Su anuncio territorial se atribuye a la fuente y no se presenta como proclamación de candidaturas.
+
+Se mantienen las 9 posiciones de D21 (5 en el rápido). La simplificación de trámites y los órganos especializados contra la corrupción quedan corroborados por esta segunda referencia. Objetivos de alquiler, financiación de vivienda protegida o grados flexibles no se extrapolan a control legal de precios, titularidad pública o becas. Los demás partidos y la fórmula no cambian.
