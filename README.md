@@ -47,3 +47,11 @@ La etiqueta de verificación proporcionada por el propietario está incorporada 
 59 páginas estáticas: fichas de 15 partidos, 14 temas, 7 análisis, guías electorales, metodología, FAQ, proyecto, transparencia y páginas legales. Test rápido de 52 preguntas y completo de 62 con prioridad 1–5, omisión explícita, cobertura, comparación por temas, brújula y exportación local. Democracia21 solo puntúa en 9 afirmaciones con propuestas identificadas en su web; el resto queda sin datos. Los demás perfiles siguen siendo estimaciones editoriales pendientes de validación por afirmación. Ocho objetivos generales nuevos quedan sin datos para esas formaciones, en lugar de derivar su postura de la orientación ideológica.
 
 El barómetro describe valores del modelo y no inventa datos de usuarios. Informes gratuitos CSV/JSON e informe personal CSV/impresión PDF. La calculadora D’Hondt aplica el umbral del 3 % y señala empates sujetos a sorteo. Novedades por RSS (`/feed.xml`); contacto prepara un correo en el dispositivo y no envía por backend. No hay recogida de respuestas, newsletter por email, estadísticas poblacionales ni pagos. Los datos legales completos del titular deben incorporarse cuando sean facilitados.
+
+## Tarjetas y guías de octubre de 2026
+
+64 páginas estáticas. La sección `/guias/` reúne cuatro guías originales con fuentes, índice, ejemplos y metadatos Article. El sitemap incluye sus fechas y el RSS también enlaza a las guías. El ejemplo interactivo de afinidad utiliza tres afirmaciones ficticias y funciona sin recopilar respuestas.
+
+`dist/share.js` genera tarjetas PNG localmente: Stories 1080 × 1920 y cuadrado 1080 × 1080. Incluyen hasta tres perfiles, cobertura y el aviso editorial. La opción de privacidad oculta partidos y porcentajes en la imagen y en el resumen de WhatsApp. El enlace compartido lleva al test y no codifica resultados. Se utiliza Web Share con archivos cuando el navegador lo admite; en los demás, se descarga el PNG. Los informes CSV siguen incluyendo respuestas. No se guarda el test ni la tarjeta en un backend.
+
+Los resultados explican coincidencias y diferencias concretas del perfil elegido. La nueva portada y las guías mantienen tipografía y recursos locales; las animaciones respetan movimiento reducido. Atajos del cuestionario: 1–5 para responder y Enter desde el enunciado para continuar.
