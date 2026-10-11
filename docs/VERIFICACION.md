@@ -1,29 +1,33 @@
-# Verificación de FAIRWAY CLUB
+# Verificación · FAIRWAY CLUB 2
 
-Fecha: 11 de octubre de 2026.
+11 de octubre de 2026.
 
 ## Código y servidor
 
-`npm run build`: correcto. Three.js y Rapier se empaquetan en módulos separados; assets comprimidos por gzip desde el servidor. Fuentes incluidas localmente con sus licencias.
+Build correcto y 29 pruebas, cero fallos. Se comprueban 144 composiciones únicas, conectividad de ruta y plazas, tees estables, copas planas/hondas, transferencia de movimiento al chocar bolas, puntuación sin golpes extra, captura y retirada de bola terminada, caídas, rebotes, golpes inválidos y resultados.
 
-`npm test`: 16 pruebas correctas, cero fallos. Comprobaciones de 72 rutas únicas, conectadas y sin tiles repetidos; física real de movimiento, reflexión y parada; captura de bola, caída y penalización; bloqueo de golpes inválidos o mientras la bola se mueve; avance de nueve hoyos, puntuación y resultados; penalización de 16 para timeout. Un tiro físico completo desde el tee hasta el primer hoyo finaliza en un golpe sin mover artificialmente la bola.
+Una bola sobre la ladera de un cuenco rueda por gravedad y entra. Un tiro desde el tee del primer hoyo llega a la copa en un golpe. Estabilidad del tee y contactos de relieve en los 144 recorridos. Render y física comparten superficies.
 
-Pruebas de servidor con sockets reales: dos participantes, validación de anfitrión, sincronización de golpes y posiciones, rechazo de sala inexistente o partida comenzada, entrada de ocho jugadores y rechazo del noveno, transferencia de anfitrión y recuperación con token privado. El ID público de un jugador no permite recuperar su sesión.
+Servidor: nombre antes de crear sala, mapa 16 admitido, aforo ocho y noveno rechazado, acciones reservadas al anfitrión, token privado, relevo, nueve hoyos y siguiente mapa conservando IDs y sala.
 
-## Navegador local
+## Chrome local
 
-Chrome real, resoluciones 1440×900, 1024×768 y 390×844. Dos contextos aislados crean y comparten una sala. Se comprueban golpes de los dos jugadores y cambios de posición/puntuación recibidos por el otro navegador.
+Escritorio 1440×900, tablet 1024×768 y móvil 390×844. Doce comprobaciones de interfaz, cero errores JavaScript. Nombre vacío bloqueado; elegir bola conserva nombre; Enter inicia. Material real de línea y etiquetas coinciden en 20/50/85 %. Carga de 16 escenarios y disparo en mapa 16.
 
-Menú, partida individual, pausa, salida, lobby, inicio online, tarjeta completa, selección de ocho mundos y gameplay en hielo en móvil. Botón, barra de potencia y arrastre sobre el canvas ejercitados. Entrada al primer hoyo con un golpe real y botón Siguiente hoyo con comprobación del número y nombre visible. Sin errores de JavaScript.
+Dos contextos aislados: disparo del anfitrión choca y mueve al invitado, que conserva cero golpes. El invitado vuelve a disparar y sincroniza puntuación. Móvil permite mapa, nombre, slider, botón y arrastre.
 
-Capturas y resultados de las ejecuciones están en `output/playwright` y `output/browser-results.json` en la carpeta de trabajo. Estos archivos de QA no se incluyen en el servidor de producción.
+Regresión de avance: nueve hoyos individuales y nueve online usando la acción explícita Pasar hoyo. El nodo del botón permanece estable más de 350 ms; clic mantenido 250 ms avanza. Resultados → Siguiente mapa funciona en ambos modos y conserva los dos participantes online.
 
-## Alcance de la evidencia
+Rendimiento: escena larga con dos navegadores usa 48 llamadas, 15 lotes estáticos y unas 80 900 caras en calidad alta. La escena inicial anterior rondaba las 400 llamadas. Agrupación de geometría estática y simplificación de suelo/agua reducen trabajo de dibujo. Son mediciones de escenas concretas, no garantía de FPS en cualquier equipo.
 
-La geometría de los 72 recorridos se comprueba automáticamente. No se han completado manualmente los 72 hoyos ni se ha medido una carga de ocho navegadores simultáneos. Las pruebas de ocho jugadores verifican sockets y reglas de sala. La ronda completa de nueve hoyos tiene pruebas de física/reglas con posiciones de captura preparadas; el recorrido completo del primer hoyo también se valida por tiro desde el tee.
-
-La calidad visual es 3D estilizada con sombras, texturas generadas, agua animada, partículas, elementos móviles y ambientaciones distintas. La simulación de rodadura y captura está ajustada para minigolf, y no pretende equivalencia física exacta con Golf It.
+Resultados: output/browser-v2-local.json, output/progression-v2-local.json y capturas output/playwright-v2. QA no se sirve al público.
 
 ## Producción
 
-La publicación requiere que el despliegue de Render esté en estado live y que respondan el frontend, `/health` y la sala por WebSocket seguro. Los resultados de esa comprobación se añaden tras publicar.
+https://fairway-club.onrender.com. Preparado para actualizar el mismo servicio gratuito. Se registra estado live y repetición de pruebas públicas al terminar publicación.
+
+## Alcance
+
+No se han completado manualmente los 144 hoyos ni medido carga de ocho navegadores simultáneos. Aforo probado con ocho sockets. Nueve hoyos en navegador verifican flujo mediante Pasar hoyo, no una ronda ganada a golpes. Primer hoyo e impactos sí usan tiros reales. Gráficos 3D estilizados y física de minigolf; no se afirma equivalencia exacta con Golf It.
+
+Las salas se pierden si reinicia el servidor gratuito. GPU, red y arranque después de inactividad afectan la experiencia.

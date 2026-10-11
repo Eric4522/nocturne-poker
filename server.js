@@ -6,12 +6,13 @@ import {randomBytes} from 'node:crypto';
 import {gzipSync} from 'node:zlib';
 import {WebSocketServer} from 'ws';
 import {GolfSession,initPhysics} from './src/physics.js';
-import {COLORS} from './src/courses.js';
+import {COLORS,WORLDS} from './src/courses.js';
+import {validateName} from './src/rules.js';
 await initPhysics();
 const root=path.join(path.dirname(fileURLToPath(import.meta.url)),'dist');const rooms=new Map();const assetCache=new Map();
-const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.woff2':'font/woff2','.wasm':'application/wasm'};
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.woff2':'font/woff2','.ttf':'font/ttf','.wasm':'application/wasm'};
 const server=http.createServer(async(req,res)=>{
- if(req.url==='/health'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true,game:'fairway-club',rooms:rooms.size}));return;}
+ if(req.url==='/health'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true,game:'fairway-club',version:'2.0.0',maps:16,rooms:rooms.size}));return;}
  try{const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);const target=path.resolve(root,'.'+pathname);if(!target.startsWith(root+path.sep)&&target!==root){res.writeHead(403);res.end();return;}
   let file=target;try{if((await stat(file)).isDirectory())file=path.join(file,'index.html');}catch{file=path.join(root,'index.html');}
   const cached=file.includes(path.sep+'assets'+path.sep);let asset=assetCache.get(file);if(!asset){const raw=await readFile(file);asset={raw,gzip:gzipSync(raw)};if(cached)assetCache.set(file,asset);}
@@ -38,11 +39,12 @@ wss.on('connection',ws=>{
   if(m.type==='ping'){send(ws,{type:'pong',at:m.at});return;}
   if(m.type==='create'||m.type==='join'||m.type==='resume'){
    if(ws.roomCode)return error(ws,'Ya estás en una sala.');
+   if(m.type!=='resume'){const valid=validateName(m.name);if(!valid.ok)return error(ws,valid.message);m.name=valid.name;}
    let room;
    if(m.type==='create'){
     if(rooms.size>=32)return error(ws,'Servidor lleno. Prueba más tarde.');
     let code;do{code=randomBytes(3).toString('hex').toUpperCase();}while(rooms.has(code));
-    const worldIndex=Number.isInteger(m.worldIndex)&&m.worldIndex>=0&&m.worldIndex<8?m.worldIndex:0;
+    const worldIndex=Number.isInteger(m.worldIndex)&&m.worldIndex>=0&&m.worldIndex<WORLDS.length?m.worldIndex:0;
     room={code,game:new GolfSession(worldIndex),sockets:new Map(),timers:new Map(),tokens:new Map(),host:null,created:Date.now()};rooms.set(code,room);
    }else room=rooms.get(String(m.code||'').toUpperCase());
    if(!room)return error(ws,'No existe esa sala. Comprueba el código.');
@@ -50,7 +52,7 @@ wss.on('connection',ws=>{
    if(m.type==='resume'){
     resumeToken=m.token;id=room.tokens.get(resumeToken);if(!id||!room.game.players.has(id)||room.sockets.has(id))return error(ws,'La sesión ya no se puede recuperar.');
     clearTimeout(room.timers.get(id));room.timers.delete(id);
-   }else{id=randomBytes(8).toString('hex');if(!room.game.addPlayer(id,typeof m.name==='string'?m.name:'Golfista'))return error(ws,room.game.phase==='lobby'?'La sala está llena.':'La partida ya ha empezado.');resumeToken=randomBytes(24).toString('hex');room.tokens.set(resumeToken,id);
+   }else{id=randomBytes(8).toString('hex');if(!room.game.addPlayer(id,m.name))return error(ws,room.game.phase==='lobby'?'La sala está llena.':'La partida ya ha empezado.');resumeToken=randomBytes(24).toString('hex');room.tokens.set(resumeToken,id);
     if(Number.isInteger(m.color)&&m.color>=0&&m.color<COLORS.length){const used=new Set([...room.game.players.values()].filter(p=>p.id!==id).map(p=>p.color));room.game.players.get(id).color=!used.has(COLORS[m.color])?COLORS[m.color]:COLORS.find(c=>!used.has(c));}
    }
    room.host??=id;ws.roomCode=room.code;ws.playerId=id;ws.resumeToken=resumeToken;room.sockets.set(id,ws);
@@ -61,8 +63,10 @@ wss.on('connection',ws=>{
    case 'start':if(ws.playerId!==room.host)return error(ws,'Solo el anfitrión puede empezar.');if(!room.game.start())return error(ws,'La partida no se puede iniciar.');broadcast(room);break;
    case 'shot':if(!room.game.shoot(ws.playerId,m.angle,m.power))error(ws,'Espera a que la bola se detenga antes de golpear.');break;
    case 'reset':room.game.reset(ws.playerId);break;
+   case 'finish':room.game.finishHole(ws.playerId);broadcast(room);break;
    case 'next':if(ws.playerId!==room.host)return error(ws,'Solo el anfitrión puede avanzar.');if(!room.game.nextHole())return error(ws,'Espera a que todos terminen el hoyo.');broadcast(room);break;
-   case 'world':if(ws.playerId!==room.host||room.game.phase!=='lobby')return error(ws,'El anfitrión elige el mundo antes de empezar.');if(Number.isInteger(m.worldIndex)&&m.worldIndex>=0&&m.worldIndex<8){room.game.worldIndex=m.worldIndex;room.game.loadCourse();broadcast(room);}break;
+   case 'restart':if(ws.playerId!==room.host)return error(ws,'Solo el anfitrión puede elegir el siguiente mapa.');if(!room.game.playMap(m.worldIndex))return error(ws,'Termina la ronda antes de cambiar de mapa.');broadcast(room);break;
+   case 'world':if(ws.playerId!==room.host||room.game.phase!=='lobby')return error(ws,'El anfitrión elige el mundo antes de empezar.');if(Number.isInteger(m.worldIndex)&&m.worldIndex>=0&&m.worldIndex<WORLDS.length){room.game.worldIndex=m.worldIndex;room.game.loadCourse();broadcast(room);}break;
    case 'leave':ws.explicitLeave=true;ws.close();break;
   }
  });

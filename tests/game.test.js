@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import {WORLDS,makeCourse} from '../src/courses.js';
 import {GolfSession,initPhysics} from '../src/physics.js';
 await initPhysics();
-test('72 unique connected courses with reachable cups',()=>{
+test('144 unique connected courses with reachable cups',()=>{
  const seen=new Set();
- for(let w=0;w<8;w++)for(let h=0;h<9;h++){
+ for(let w=0;w<16;w++)for(let h=0;h<9;h++){
   const c=makeCourse(w,h);assert.ok(c.tiles.length>=5);
-  for(let i=1;i<c.tiles.length;i++) assert.equal(Math.abs(c.tiles[i].x-c.tiles[i-1].x)+Math.abs(c.tiles[i].z-c.tiles[i-1].z),4);
+  for(let i=1;i<c.routeTiles.length;i++) assert.equal(Math.abs(c.routeTiles[i].x-c.routeTiles[i-1].x)+Math.abs(c.routeTiles[i].z-c.routeTiles[i-1].z),4);
   assert.equal(new Set(c.tiles.map(t=>`${t.x},${t.z}`)).size,c.tiles.length);
   seen.add(JSON.stringify(c.tiles));assert.ok(c.par>=2);
  }
- assert.equal(seen.size,72);assert.equal(WORLDS.length,8);
+ assert.equal(seen.size,144);assert.equal(WORLDS.length,16);
 });
 test('legal shot moves a real ball; second shot while moving is rejected',()=>{
  const s=new GolfSession(0);s.addPlayer('a','Ana');s.start();
@@ -49,12 +49,12 @@ test('late joins and duplicate players are blocked',()=>{
  const s=new GolfSession(0);assert.equal(s.addPlayer('a','Ana'),true);assert.equal(s.addPlayer('a','Other'),false);
  s.start();assert.equal(s.addPlayer('b','Biel'),false);s.dispose();
 });
-test('unfinished timed-out players receive 16 strokes so inactivity cannot win',()=>{
- const s=new GolfSession(0);s.addPlayer('a','Ana');s.start();s.time=180;s.step();const p=s.players.get('a');assert.equal(p.finished,true);assert.equal(p.scores[0],16);s.dispose();
+test('unfinished timed-out players receive 32 strokes so inactivity cannot win',()=>{
+ const s=new GolfSession(0);s.addPlayer('a','Ana');s.start();s.time=480;s.step();const p=s.players.get('a');assert.equal(p.finished,true);assert.equal(p.scores[0],32);s.dispose();
 });
 test('a complete nine-hole round preserves all scores and reaches results',()=>{
  const s=new GolfSession(0);s.addPlayer('a','Ana');s.start();
- for(let hole=0;hole<9;hole++){const p=s.players.get('a');p.strokes=hole+1;p.body.setTranslation({x:s.course.cup.x,y:.2,z:s.course.cup.z},true);p.body.setLinvel({x:0,y:0,z:0},true);s.step();assert.equal(p.finished,true);assert.equal(p.scores[hole],hole+1);assert.equal(s.nextHole(),true);}
+ for(let hole=0;hole<9;hole++){const p=s.players.get('a');p.strokes=hole+1;p.body.setTranslation({x:s.course.cup.x,y:s.course.cup.y+.2,z:s.course.cup.z},true);p.body.setLinvel({x:0,y:0,z:0},true);s.step();assert.equal(p.finished,true);assert.equal(p.scores[hole],hole+1);assert.equal(s.nextHole(),true);}
  assert.equal(s.phase,'results');assert.deepEqual(s.players.get('a').scores,[1,2,3,4,5,6,7,8,9]);s.dispose();
 });
 test('a real tee shot reaches and enters the first cup without teleporting',()=>{

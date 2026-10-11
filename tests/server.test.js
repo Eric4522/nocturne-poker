@@ -8,12 +8,25 @@ after(()=>{clients.forEach(c=>c.close());child?.kill();});
 async function client(){const ws=new WebSocket(url);clients.push(ws);ws.queue=[];ws.on('message',raw=>{const m=JSON.parse(raw);ws.queue.push(m);ws.wake?.();});await new Promise((resolve,reject)=>{ws.once('open',resolve);ws.once('error',reject);});return ws;}
 async function receive(ws,type,condition=()=>true){const deadline=Date.now()+4000;while(Date.now()<deadline){const i=ws.queue.findIndex(m=>m.type===type&&condition(m));if(i>=0)return ws.queue.splice(i,1)[0];await new Promise(r=>{const t=setTimeout(r,50);ws.wake=()=>{clearTimeout(t);r();};});}throw Error('No message '+type);}
 function send(ws,m){ws.send(JSON.stringify(m));}
+test('server requires a name before allocating a room and accepts map sixteen',async()=>{
+ const ws=await client();const before=await(await fetch('http://127.0.0.1:3127/health')).json();
+ send(ws,{type:'create',name:' ',worldIndex:15});assert.match((await receive(ws,'error')).message,/nombre/);
+ const after=await(await fetch('http://127.0.0.1:3127/health')).json();assert.equal(after.rooms,before.rooms);
+ send(ws,{type:'create',name:'Último mapa',worldIndex:15});const m=await receive(ws,'welcome');assert.equal(m.state.worldIndex,15);send(ws,{type:'leave'});
+});
+test('a multiplayer group advances through nine holes and changes map without reconnecting',async()=>{
+ const host=await client(),guest=await client();send(host,{type:'create',name:'Ronda host',worldIndex:0});const a=await receive(host,'welcome');send(guest,{type:'join',name:'Ronda guest',code:a.room.code});const b=await receive(guest,'welcome');send(host,{type:'start'});await receive(host,'state',m=>m.state.phase==='playing');
+ for(let h=0;h<9;h++){send(host,{type:'finish'});send(guest,{type:'finish'});await receive(host,'state',m=>m.state.hole===h&&m.state.players.every(p=>p.finished));send(host,{type:'next'});await receive(host,'state',m=>h===8?m.state.phase==='results':m.state.hole===h+1);}
+ send(guest,{type:'restart',worldIndex:1});assert.match((await receive(guest,'error')).message,/anfitrión/);
+ send(host,{type:'restart',worldIndex:1});const next=await receive(guest,'state',m=>m.state.worldIndex===1&&m.state.phase==='playing');assert.equal(next.room.code,a.room.code);assert.equal(next.state.hole,0);assert.deepEqual(next.state.players.map(p=>p.id),[a.you,b.you]);assert.ok(next.state.players.every(p=>p.scores.length===0));send(host,{type:'leave'});send(guest,{type:'leave'});
+});
 test('HTTP health and frontend are available',async()=>{const h=await fetch('http://127.0.0.1:3127/health');assert.equal(h.status,200);assert.equal((await h.json()).game,'fairway-club');const page=await fetch('http://127.0.0.1:3127/');assert.equal(page.status,200);assert.match(await page.text(),/Fairway Club/);});
 test('two real sockets join; only host starts; shots and positions synchronize',async()=>{
  const host=await client(),guest=await client();send(host,{type:'create',name:'Host',worldIndex:0});const a=await receive(host,'welcome');assert.match(a.room.code,/^[A-F0-9]{6}$/);
  send(guest,{type:'join',name:'Guest',code:a.room.code});const b=await receive(guest,'welcome');assert.equal(b.state.players.length,2);
  send(guest,{type:'start'});assert.match((await receive(guest,'error')).message,/anfitrión/);
  send(host,{type:'start'});await receive(guest,'state',m=>m.state.phase==='playing');
+ await receive(host,'state',m=>m.state.phase==='playing'&&m.state.time>.4&&!m.state.players.find(p=>p.id===a.you).moving);
  send(host,{type:'shot',angle:0,power:.4});const moved=await receive(guest,'state',m=>m.state.players.find(p=>p.id===a.you).pos.z<.4);assert.equal(moved.state.players.find(p=>p.id===a.you).strokes,1);
  await receive(guest,'state',m=>m.state.time>.7&&!m.state.players.find(p=>p.id===b.you)?.moving);
  send(guest,{type:'shot',angle:0,power:.3,id:a.you});const shot=await receive(host,'state',m=>m.state.players.find(p=>p.id===b.you)?.strokes===1);assert.equal(shot.state.players.find(p=>p.id===a.you).strokes,1);

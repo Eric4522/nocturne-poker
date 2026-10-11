@@ -1,9 +1,11 @@
-# FAIRWAY CLUB
+# Diseño v2
 
-Juego de minigolf 3D original para navegador, inspirado en el género de Golf It. Ocho ambientes y 72 rutas reproducibles con combinaciones de cambios de dirección, pendientes, puertas móviles, barras giratorias, arena, aceleradores y rebotes. No utiliza nombres, niveles ni recursos de Golf It.
+Minigolf original para navegador con estética 3D estilizada, interfaz en español y juego individual o simultáneo por código para ocho personas. 16 escenarios, nueve hoyos por escenario; composiciones largas con 96–212 m de ruta principal, excepto un hoyo inicial de 20 m.
 
-Three.js renderiza los campos y Rapier simula bolas esféricas con CCD a 60 Hz. Un solo módulo de física se comparte entre la partida individual y el servidor. El modo online usa WebSocket; el servidor controla posiciones, golpes, puntuaciones y avance. Máximo ocho jugadores por sala, golpes simultáneos, sin colisión entre bolas. Sin cuentas ni pagos. Las salas viven en memoria y desaparecen al reiniciar el servidor.
+Recorridos combinan nueve familias de curvas con entradas, dimensiones y espejos de cada mundo, plazas y bucles laterales. Puentes elevados, colinas y depresiones comparten geometría entre Rapier y Three.js. Copas alternan suelo plano y cuenco. Ambientación distinta por paleta, patrones del suelo, vegetación, hitos arquitectónicos, luz y mobiliario.
 
-Menú con escena 3D animada, selector de mundos, personalización de bola, nombre, opciones de imagen/sonido y controles. Partidas de nueve hoyos, tarjeta completa y resultados. Controles de arrastrar para golpear y botón táctil alternativo, cámara orbital, vista aérea, rescate con penalización. Se muestran los errores de conexión y la partida no simula una conexión inexistente.
+Servidor autoritativo: choques entre bolas, golpes validados, nombre obligatorio, ocho tees separados, 32 golpes y 480 segundos por hoyo. Bola finalizada deja de colisionar. Botón estable al terminar; siguientes mapas preservan sala y jugadores.
 
-Pruebas: 72 rutas únicas y conectadas, rebote físico, parada, captura, penalizaciones, restricciones de golpes, límites de sala, dos clientes WebSocket, dos páginas reales y tamaños móvil/tablet/escritorio. No se promete una reproducción de Golf It, un editor de mapas, física idéntica a ese título, matchmaking global ni rendimiento de calidad AAA.
+Potencia accesible en línea y HUD: verde FLOJO, naranja NORMAL, rojo FUERTE. La guía representa dirección y fuerza. Móvil inicia en calidad media, gráficos ajustables. Geometría estática agrupada para reducir llamadas de dibujo.
+
+QA: reglas/física/WS, geometría y estabilidad de 144 recorridos, tiros e impactos reales, escritorio/tablet/móvil, nueve hoyos y siguiente mapa en dos navegadores. No se afirma jugar manualmente todos los recorridos ni equivalencia AAA con el juego de referencia.
