@@ -2,7 +2,7 @@
 
 Web publicada: https://conexion-politica.onrender.com/
 
-Sitio estático de afinidad política para España, con cuestionarios de 12 y 36 preguntas. Los perfiles son editoriales e ilustrativos; los valores y la fórmula se publican en la metodología.
+Sitio estático de afinidad política para España, con cuestionarios de 52 y 62 preguntas. Los perfiles son editoriales e ilustrativos; los valores y la fórmula se publican en la metodología.
 
 ## Generar las páginas
 
@@ -11,7 +11,7 @@ SITE_URL=http://localhost:4173 node scripts/build-seo.cjs
 python -m http.server 4173 --directory dist
 ```
 
-No necesita instalación de dependencias. Node genera las páginas informativas, el mapa del sitio y los metadatos desde los mismos datos del test. El diseño y la aplicación están en `dist/styles.css` y `dist/app.js`; la portada fuente está en `content/home.html`.
+No necesita instalación de dependencias. Node genera las páginas informativas, el mapa del sitio y los metadatos desde los mismos datos del test. El modelo fuente está en `content/model.json`, los textos de las páginas en `content/site-pages.cjs` y los canales públicos en `content/site-config.json`. Las variables `CONTACT_EMAIL`, `SUPPORT_URL` y `NEWSLETTER_URL` permiten sustituir estos últimos desde Render. El diseño y la aplicación están en `dist/styles.css` y `dist/app.js`; la portada fuente está en `content/home.html`.
 
 ## Render
 
@@ -25,7 +25,7 @@ Después de cambiar de dominio, regenerar y desplegar con el nuevo `SITE_URL` pa
 
 La tipografía DM Sans se aloja localmente bajo licencia OFL (`dist/fonts/OFL.txt`).
 
-Los logos de los 12 partidos se sirven localmente desde `dist/party-logos/`. Las fuentes, autores y licencias de los archivos originales están en `content/party-logo-sources.json`. Se conservan los colores y las proporciones originales.
+Los logos de los 15 partidos se sirven localmente desde `dist/party-logos/`. Las fuentes, autores y licencias de los archivos originales están en `content/party-logo-sources.json`. Se conservan los colores y las proporciones originales.
 
 La portada presenta los vídeos originales a 60 fps como una animación decorativa sin controles ni interacción: versión vertical hasta 767 px y horizontal desde 768 px. Los MP4 se alojan en `dist/videos/` y se reproducen en bucle, siempre silenciados, al entrar en pantalla. Al salir de pantalla o empezar un test se pausan; al volver se reanudan. Con movimiento reducido se muestra únicamente la imagen de presentación.
 
@@ -40,4 +40,10 @@ Para solicitar la indexación desde la cuenta del propietario:
 3. En **Sitemaps**, enviar `sitemap.xml`.
 4. En **Inspección de URLs**, inspeccionar `https://conexion-politica.onrender.com/` y solicitar su indexación. Revisar después el estado real de indexación y las consultas de búsqueda en Search Console.
 
-La etiqueta de verificación proporcionada por el propietario está incorporada a `content/home.html` y se conserva al regenerar el sitio. El propietario debe pulsar **Verificar** en Search Console y enviar después el sitemap; estas acciones necesitan su sesión de Google. La disponibilidad pública y una consulta `site:` no acreditan por sí solas el estado de indexación de Google.
+La etiqueta de verificación proporcionada por el propietario está incorporada a `content/home.html` y se conserva al regenerar el sitio. El propietario ya confirmó la verificación. Tras esta ampliación, puede enviar `sitemap.xml` actualizado y revisar la indexación desde su sesión de Google. La disponibilidad pública y una consulta `site:` no acreditan por sí solas el estado de indexación de Google.
+
+## Ampliación de octubre de 2026
+
+59 páginas estáticas: fichas de 15 partidos, 14 temas, 7 análisis, guías electorales, metodología, FAQ, proyecto, transparencia y páginas legales. Test rápido de 52 preguntas y completo de 62 con prioridad 1–5, omisión explícita, cobertura, comparación por temas, brújula y exportación local. Democracia21 solo puntúa en 9 afirmaciones con propuestas identificadas en su web; el resto queda sin datos. Los demás perfiles siguen siendo estimaciones editoriales pendientes de validación por afirmación.
+
+El barómetro describe valores del modelo y no inventa datos de usuarios. Informes gratuitos CSV/JSON e informe personal CSV/impresión PDF. La calculadora D’Hondt aplica el umbral del 3 % y señala empates sujetos a sorteo. Novedades por RSS (`/feed.xml`); contacto prepara un correo en el dispositivo y no envía por backend. No hay recogida de respuestas, newsletter por email, estadísticas poblacionales ni pagos. Los datos legales completos del titular deben incorporarse cuando sean facilitados.

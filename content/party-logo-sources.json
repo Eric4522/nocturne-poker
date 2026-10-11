@@ -106,5 +106,25 @@
     "author": "Fer1997",
     "license": "Public domain",
     "bytes": 72521
+  },
+  {
+    "asset": "adelante-andalucia.png",
+    "source": "https://adelanteandalucia.org/wp-content/uploads/2022/04/imagotipo-alt-300x300.png",
+    "author": "Titular de la marca",
+    "license": "Marca usada para identificación informativa",
+    "bytes": 12899
+  },
+  {
+    "asset": "salf.png",
+    "source": "https://www.seacabolafiesta.com/images/salf-logo.png",
+    "author": "Titular de la marca",
+    "license": "Marca usada para identificación informativa",
+    "bytes": 108043
+  },
+  {
+    "asset": "democracia21.svg",
+    "source": "https://democracia21.es/favicon.svg",
+    "author": "Democracia21",
+    "license": "Marca usada para identificación informativa"
   }
 ]
