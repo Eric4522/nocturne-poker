@@ -1,13 +1,12 @@
 services:
   - type: web
-    name: nocturne-poker
+    name: fairway-club
     runtime: node
     plan: free
     region: frankfurt
-    buildCommand: node --check server.cjs
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
-    autoDeployTrigger: commit
     envVars:
       - key: NODE_ENV
         value: production

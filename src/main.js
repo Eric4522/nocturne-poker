@@ -1,0 +1,156 @@
+import './style.css';
+import {GolfScene} from './scene.js';
+import {GolfSession,initPhysics} from './physics.js';
+import {WORLDS,makeCourse,COLORS} from './courses.js';
+const app=document.querySelector('#app'),canvas=document.querySelector('#scene');
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icon=(name)=>({flag:'⚑',play:'↗',friends:'♧',arrow:'→',back:'←',settings:'⚙',sound:'♪',close:'×',cup:'♜',eye:'◉',check:'✓'}[name]||name);
+const prefs=JSON.parse(localStorage.getItem('fairway-prefs')||'null')||{name:'Golfista',color:0,quality:'high',sound:true,volume:.45};
+let scene,solo=null,socket=null,view='menu',selected=0,state=null,me='solo',resumeToken=null,room=null,angle=0,power=.42,modal=null,drag=null,orbit=null,ping=0,reconnect=0,exiting=false,lastHole=-1,lastPhase='',victorySaved=false;
+let audio,master,musicTimer;
+const worldQuery=Number(new URLSearchParams(location.search).get('world'));if(Number.isInteger(worldQuery)&&worldQuery>=0&&worldQuery<8)selected=worldQuery;
+function savePrefs(){localStorage.setItem('fairway-prefs',JSON.stringify(prefs));}
+function sound(type='click'){
+ if(!prefs.sound)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume();master??=audio.createGain();master.gain.value=prefs.volume*.25;master.connect(audio.destination);const now=audio.currentTime;
+  const notes=type==='cup'?[523,659,784,1046]:type==='hit'?[130,70]:type==='fall'?[220,140]:[650];
+  notes.forEach((frequency,i)=>{const o=audio.createOscillator(),g=audio.createGain();o.type=type==='hit'?'triangle':'sine';o.frequency.setValueAtTime(frequency,now+i*.07);g.gain.setValueAtTime(.0001,now+i*.07);g.gain.exponentialRampToValueAtTime(type==='hit'?.3:.12,now+i*.07+.008);g.gain.exponentialRampToValueAtTime(.0001,now+i*.07+.35);o.connect(g);g.connect(master);o.start(now+i*.07);o.stop(now+i*.07+.4);});
+ }catch{}
+}
+function toast(message){const el=document.querySelector('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),4000);}
+function playerName(){const el=document.querySelector('#player-name');if(el){prefs.name=el.value.trim().slice(0,20)||'Golfista';savePrefs();}return prefs.name;}
+function previewSVG(w,h=2){const c=makeCourse(w,h),theme=WORLDS[w];const minX=Math.min(...c.tiles.map(t=>t.x))-5,maxX=Math.max(...c.tiles.map(t=>t.x))+5,minZ=Math.min(...c.tiles.map(t=>t.z))-5;return `<svg viewBox="${minX} ${minZ} ${maxX-minX} ${-minZ+6}" xmlns="http://www.w3.org/2000/svg"><defs><filter id="s${w}"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-opacity=".2"/></filter></defs><g filter="url(#s${w})">${c.tiles.map(t=>`<rect x="${t.x-2}" y="${t.z-2}" width="4.1" height="4.1" rx=".2" fill="${theme.grass}" stroke="${theme.edge}" stroke-width=".3"/>`).join('')}${c.obstacles.map(o=>o.type==='spinner'?`<rect x="${o.x-1.4}" y="${o.z-.2}" width="2.8" height=".4" fill="${theme.accent}"/>`:`<circle cx="${o.x}" cy="${o.z}" r=".45" fill="${theme.edge}"/>`).join('')}<circle cx="0" cy="1" r=".5" fill="#fff8e3"/><circle cx="${c.cup.x}" cy="${c.cup.z}" r=".65" fill="#263b35"/><path d="M${c.cup.x} ${c.cup.z}v-3h2l-2 1" fill="${theme.accent}" stroke="${theme.accent}" stroke-width=".25"/></g></svg>`;}
+function logo(){return `<button class="brand" data-action="menu" aria-label="Inicio"><span class="brand-icon">⚑</span><span>fairway<span class="brand-small">CLUB</span></span></button>`;}
+function header(active='play'){return `<header>${logo()}<nav aria-label="Principal"><button data-action="menu" class="${active==='play'?'active':''}">Jugar</button><button data-action="worlds" class="${active==='worlds'?'active':''}">Los mundos <span>08</span></button><button data-action="help">Cómo jugar</button></nav><div class="header-right"><button class="circle-btn" data-action="settings" aria-label="Ajustes">${icon('settings')}</button><button class="profile" data-action="profile"><span class="avatar" style="--ball:${COLORS[prefs.color]}"></span><span>${esc(prefs.name)}</span></button></div></header>`;}
+function worldCards(all=false){return WORLDS.map((w,i)=>`<button class="world-card ${selected===i?'selected':''}" data-action="select-world" data-world="${i}" style="--world:${w.water};--sky:${w.sky};--accent:${w.accent}"><div class="world-image"><div class="world-disc"></div>${previewSVG(i)}<span class="world-number">${String(i+1).padStart(2,'0')}</span><span class="world-badge">${w.tag}</span></div><div class="world-caption"><div><strong>${w.name}</strong><span>9 hoyos <i>·</i> ${['','Tranquilo','Intermedio','Desafiante','Experto'][w.difficulty]}</span></div><span class="world-select">${selected===i?'✓':'↗'}</span></div></button>`).join('');}
+function render(){
+ if(view==='menu'){
+  app.innerHTML=`<div class="menu-shade"></div>${header()}<main class="menu-main"><div class="eyebrow"><span class="spark">✳</span> MINIGOLF, EN BUENA COMPAÑÍA</div><h1>Un buen día<br>para un <em>birdie.</em></h1><p class="intro">Pequeños campos. Grandes piques.<br>Tu próxima partida empieza aquí.</p><div class="hero-actions"><button class="btn primary" data-action="solo">Jugar ahora <span>↗</span></button><button class="btn ghost" data-action="online">Con amigos <span>♧</span></button></div><div class="hero-facts"><span><i class="live-dot"></i> 1–8 jugadores</span><span>72 hoyos por descubrir</span></div></main><div class="scene-caption"><span>EXPLORANDO AHORA</span><strong>${WORLDS[selected].name}</strong><span>${WORLDS[selected].subtitle} <i>↗</i></span></div><section class="world-shelf"><div class="shelf-heading"><span>ELIGE TU PRÓXIMA ESCAPADA</span><button data-action="worlds">Ver los 8 mundos <span>→</span></button></div><div class="world-strip">${worldCards()}</div></section><footer><span>FAIRWAY CLUB <i>·</i> EST. 2026</span><span>Un golpe. Una sonrisa. Otra ronda.</span><button data-action="settings">♪ Sonido ${prefs.sound?'activado':'desactivado'}</button></footer>`;
+ }else if(view==='worlds'){
+  app.innerHTML=`<div class="full-shade"></div>${header('worlds')}<main class="worlds-page"><div class="page-intro"><span class="eyebrow">OCHO FORMAS DE PERDER LA NOCIÓN DEL TIEMPO</span><h2>Un mundo para cada <em>golpe.</em></h2><p>Elige tu paisaje. Nueve hoyos, un montón de posibilidades.</p></div><div class="world-grid">${worldCards(true)}</div><div class="worlds-bottom"><span><strong>${WORLDS[selected].name}</strong> está listo para ti.</span><button class="btn primary" data-action="solo">Jugar este mundo ↗</button><button class="btn ghost" data-action="online">Crear sala ♧</button></div></main>`;
+ }else if(view==='lobby'){
+  const host=room?.host===me;app.innerHTML=`<div class="full-shade"></div>${header()}<main class="lobby-page"><div class="lobby-info"><span class="eyebrow">BUENOS AMIGOS. MALAS EXCUSAS.</span><h2>Nos vemos<br>en el <em>green.</em></h2><p>Comparte el código. Cada jugador entra desde su navegador en «Con amigos».</p><div class="room-code"><span>CÓDIGO DE SALA</span><strong>${esc(room?.code||'')}</strong><button class="circle-btn" data-action="copy-code" aria-label="Copiar código">⧉</button></div><div class="lobby-course">${previewSVG(room?.worldIndex||0)}<div><span>MUNDO SELECCIONADO</span><strong>${WORLDS[room?.worldIndex||0].name}</strong><small>9 hoyos · Máximo 8 jugadores</small></div></div><p class="small-note">Todos golpean a su ritmo. El anfitrión avanza cuando el grupo termina el hoyo.</p></div><section class="lobby-players"><div class="panel-heading"><h3>Tu grupo</h3><span>${room?.players.length||0} / 8</span></div><div id="lobby-list">${lobbyPlayers()}</div>${host?`<button class="btn primary full" data-action="start-online">Empezar partida ↗</button><p class="small-note">Puedes empezar solo para practicar en tu sala.</p>`:`<div class="waiting">Esperando al anfitrión<span class="loading-dots">…</span></div>`}<button class="text-btn" data-action="leave">← Salir de la sala</button></section></main>`;
+ }else if(view==='game'){
+  const c=makeCourse(state.worldIndex,state.hole);app.innerHTML=`<div class="game-hud"><div class="game-top"><button class="game-back circle-btn" data-action="pause" aria-label="Pausar o salir">Ⅱ</button><div class="hole-pill"><span id="hole-number">${String(state.hole+1).padStart(2,'0')}</span><div><strong id="hole-name">${c.name}</strong><span>${WORLDS[state.worldIndex].name} <i>·</i> PAR ${c.par} <i>·</i> HOYO ${state.hole+1}/9</span></div></div><div class="game-tools"><button class="circle-btn" data-action="overview" aria-label="Vista aérea">⌖</button><button class="circle-btn" data-action="scorecard" aria-label="Tarjeta de puntuación">☷</button><button class="circle-btn" data-action="settings" aria-label="Ajustes">⚙</button></div></div><div class="round-clock"><span id="timer">03:00</span><div><i id="timer-fill"></i></div></div><section class="leaderboard"><div class="panel-heading"><h3>En el green</h3><span>${room?'ONLINE':'SOLO'}</span></div><div id="scores"></div><button class="text-btn" data-action="scorecard">Ver tarjeta completa ↗</button><div class="network-label">${room?'<i class="live-dot"></i> Conectado <span id="ping">— ms</span>':'<i class="live-dot"></i> Partida individual'}</div></section><div class="mini-map">${previewSVG(state.worldIndex,state.hole)}</div><div id="hole-end" class="hole-end hidden"></div><div class="shot-controls"><div class="shot-status"><span id="shot-label">TU TURNO DE BRILLAR</span><strong><span id="strokes">0</span><small> GOLPES</small></strong></div><div class="power-row"><span>POTENCIA</span><div class="power-track"><i id="power-fill"></i><span id="power-text">42%</span></div></div><input class="power-slider" id="power" type="range" min="2" max="100" value="42" aria-label="Potencia del golpe"><div class="control-buttons"><button data-action="aim-left" aria-label="Apuntar a la izquierda">↶</button><button data-action="hit" id="hit-button">Golpear <span>↗</span></button><button data-action="aim-right" aria-label="Apuntar a la derecha">↷</button></div><p class="shot-help">Arrastra sobre el campo y suelta para golpear.<br><span>Botón derecho: cámara <i>·</i> Rueda: zoom <i>·</i> V: vista aérea</span></p></div><div class="bottom-left"><button class="text-btn" data-action="rescue">↺ Rescatar bola <small>+1 golpe</small></button></div><div class="bottom-right">${room?`SALA ${esc(room.code)}`:'PRACTICA A TU RITMO'}<span>FAIRWAY CLUB</span></div></div>`;updateHUD();
+ }else if(view==='results'){
+  const sorted=[...state.players].sort((a,b)=>total(a)-total(b));const winner=sorted[0];app.innerHTML=`<div class="full-shade"></div>${header()}<main class="results-page"><span class="eyebrow">UNA RONDA PARA RECORDAR</span><div class="trophy">⚑</div><h2>${state.players.length===1?'Bien jugado,':esc(winner.name)+','}<br><em>${state.players.length===1?'golfista.':'la copa es tuya.'}</em></h2><p>${WORLDS[state.worldIndex].name} · 9 hoyos completados</p><div class="results-ranking">${sorted.map((p,i)=>`<div><span class="rank">${i+1}</span><span class="avatar" style="--ball:${p.color}"></span><strong>${esc(p.name)}</strong><span class="result-total">${total(p)} <small>golpes</small></span></div>`).join('')}</div><div class="results-actions"><button class="btn primary" data-action="scorecard">Ver tarjeta ☷</button><button class="btn ghost" data-action="again">Otra ronda ↗</button><button class="text-btn" data-action="leave">Volver al club →</button></div></main>`;saveRecord();
+ }
+ if(modal)renderModal();
+}
+function total(p){return p.scores.reduce((a,b)=>a+(b||0),0);}
+function lobbyPlayers(){return (room?.players||[]).map(p=>`<div class="lobby-player"><span class="avatar" style="--ball:${p.color}"></span><div><strong>${esc(p.name)} ${p.id===me?'<small>(tú)</small>':''}</strong><span>${p.id===room.host?'Anfitrión':p.connected?'Listo para jugar':'Reconectando…'}</span></div><i class="${p.connected?'live-dot':'offline-dot'}"></i></div>`).join('')+Array.from({length:Math.max(0,4-(room?.players.length||0))},()=>'<div class="empty-player">＋ <span>Un sitio para tu próximo rival</span></div>').join('');}
+function renderModal(){
+ document.querySelector('.modal-wrap')?.remove();let content='';
+ if(modal==='online')content=`<span class="eyebrow">LA PARTIDA MEJORA EN COMPAÑÍA</span><h2>Invita a tu <em>grupo.</em></h2><p>Hasta ocho jugadores. Un código. Cero cuentas.</p><label class="field-label">TU NOMBRE<input id="player-name" maxlength="20" value="${esc(prefs.name)}" placeholder="Tu nombre"></label><div class="online-choice"><button class="btn primary full" data-action="create-room">Crear una sala ↗</button><span>${WORLDS[selected].name} · 9 hoyos</span></div><div class="separator">O ÚNETE A TUS AMIGOS</div><div class="join-row"><input id="room-input" maxlength="6" autocomplete="off" placeholder="CÓDIGO" aria-label="Código de sala"><button class="btn ghost" data-action="join-room">Entrar →</button></div><p class="small-note">La primera conexión al servidor gratuito puede tardar un poco.</p>`;
+ if(modal==='profile')content=`<span class="eyebrow">TU ESTILO, TU GOLPE</span><h2>Hazlo <em>tuyo.</em></h2><label class="field-label">NOMBRE DE GOLFISTA<input id="player-name" maxlength="20" value="${esc(prefs.name)}"></label><label class="field-label">ELIGE TU BOLA</label><div class="ball-colors">${COLORS.map((c,i)=>`<button data-action="color" data-color="${i}" class="${prefs.color===i?'chosen':''}" style="--ball:${c}" aria-label="Color de bola ${i+1}"><span class="avatar"></span></button>`).join('')}</div><button class="btn primary full" data-action="save-profile">Guardar ✓</button>`;
+ if(modal==='settings')content=`<span class="eyebrow">A TU MANERA</span><h2>Los pequeños <em>detalles.</em></h2><label class="field-label">CALIDAD GRÁFICA<select id="quality"><option value="high" ${prefs.quality==='high'?'selected':''}>Alta · Sombras y resplandor</option><option value="medium" ${prefs.quality==='medium'?'selected':''}>Media · Equilibrada</option><option value="low" ${prefs.quality==='low'?'selected':''}>Ligera · Mejor rendimiento</option></select></label><div class="setting-row"><div><strong>Efectos de sonido</strong><span>Cada golpe tiene su propia nota.</span></div><button class="toggle ${prefs.sound?'on':''}" data-action="sound" aria-label="Activar o desactivar sonido" aria-pressed="${prefs.sound}"><i></i></button></div><label class="field-label">VOLUMEN <input id="volume" type="range" min="0" max="100" value="${prefs.volume*100}"></label><button class="btn primary full" data-action="close-modal">Listo ✓</button>`;
+ if(modal==='help')content=`<span class="eyebrow">FÁCIL DE EMPEZAR. DIFÍCIL DE SOLTAR.</span><h2>Un golpe <em>a la vez.</em></h2><div class="help-step"><b>01</b><div><strong>Apunta y carga</strong><p>Arrastra sobre el campo hacia atrás respecto a tu bola. La línea señala el golpe; cuanto más arrastres, más potencia.</p></div></div><div class="help-step"><b>02</b><div><strong>Suelta y déjala rodar</strong><p>Espera a que la bola pare antes de volver a golpear. El objetivo es llegar al hoyo con el menor número de golpes.</p></div></div><div class="help-step"><b>03</b><div><strong>Domina el recorrido</strong><p>Las paredes rebotan, la arena frena y el hielo desliza. Una caída añade un golpe y te devuelve al último punto de tiro.</p></div></div><div class="keys"><span><kbd>A</kbd><kbd>D</kbd> Apuntar</span><span><kbd>W</kbd><kbd>S</kbd> Potencia</span><span><kbd>Espacio</kbd> Golpear</span><span><kbd>V</kbd> Vista aérea</span><span><kbd>R</kbd> Rescatar</span></div><p class="small-note">En móvil puedes apuntar arrastrando y usar la barra de potencia, las flechas y el botón Golpear. Cada hoyo tiene un máximo de 16 golpes y tres minutos.</p><button class="btn primary full" data-action="close-modal">Vamos al green ↗</button>`;
+ if(modal==='pause')content=`<span class="eyebrow">TÓMATE UN RESPIRO</span><h2>El green te <em>espera.</em></h2><p>${room?'La partida online y su reloj siguen activos.':'La partida individual está pausada.'}</p><button class="btn primary full" data-action="close-modal">Seguir jugando ↗</button><button class="btn ghost full" data-action="help">Ver controles</button><button class="text-btn danger" data-action="leave">Salir de la partida</button>`;
+ if(modal==='scorecard'){const pars=Array.from({length:9},(_,i)=>makeCourse(state.worldIndex,i).par);content=`<span class="eyebrow">CADA GOLPE CUENTA</span><h2>La <em>tarjeta.</em></h2><p>${WORLDS[state.worldIndex].name} · Par ${pars.reduce((a,b)=>a+b,0)}</p><div class="score-table-wrap"><table class="score-table"><thead><tr><th>Golfista</th>${pars.map((_,i)=>`<th>${i+1}</th>`).join('')}<th>Total</th></tr></thead><tbody><tr class="par-row"><td>Par</td>${pars.map(p=>`<td>${p}</td>`).join('')}<td>${pars.reduce((a,b)=>a+b,0)}</td></tr>${state.players.map(p=>`<tr><td>${esc(p.name)}</td>${pars.map((par,i)=>`<td class="${p.scores[i]&&p.scores[i]<par?'under-par':''}">${p.scores[i]??'—'}</td>`).join('')}<td><strong>${total(p)}</strong></td></tr>`).join('')}</tbody></table></div><button class="btn primary full" data-action="close-modal">Volver →</button>`;}
+ const wrap=document.createElement('div');wrap.className='modal-wrap';wrap.innerHTML=`<div class="modal-backdrop" data-action="close-modal"></div><section class="modal ${modal==='scorecard'?'wide':''}" role="dialog" aria-modal="true" aria-label="${esc(modal)}"><button class="modal-close circle-btn" data-action="close-modal" aria-label="Cerrar">×</button>${content}</section>`;app.append(wrap);wrap.querySelector('input:not([type=range])')?.focus();
+}
+function showModal(type){modal=type;drag=null;renderModal();}
+function closeModal(){modal=null;document.querySelector('.modal-wrap')?.remove();}
+function startSolo(){
+ cleanup();solo=new GolfSession(selected);solo.addPlayer('solo',prefs.name);solo.players.get('solo').color=COLORS[prefs.color];solo.start();me='solo';state=solo.snapshot();room=null;lastHole=-1;lastPhase='';victorySaved=false;view='game';scene.setMode(false);sync(state);closeModal();sound();
+ if(!localStorage.getItem('fairway-tutorial')){localStorage.setItem('fairway-tutorial','1');showModal('help');}
+}
+function cleanup(){exiting=true;clearTimeout(connect.retryTimer);socket?.close();socket=null;solo?.dispose();solo=null;room=null;state=null;reconnect=0;}
+function goMenu(){cleanup();closeModal();view='menu';lastHole=-1;lastPhase='';scene.loadCourse(makeCourse(selected,2));scene.setMode(true);render();}
+function sync(s){
+ state=s;
+ const changed=s.hole!==lastHole||s.worldIndex!==scene.course?.worldIndex;
+ if(changed){lastHole=s.hole;scene.loadCourse(makeCourse(s.worldIndex,s.hole));angle=0;power=.42;scene.follow.copy(s.players.find(p=>p.id===me)?.pos||s.players[0]?.pos||scene.center);scene.target.copy(scene.follow);}
+ if(s.phase!==lastPhase){lastPhase=s.phase;view=s.phase==='lobby'?'lobby':s.phase==='results'?'results':'game';scene.setMode(view!=='game');render();}
+ else if(changed)render();
+ for(const e of s.events||[]){if(e.type==='cup'){sound('cup');if(e.id===me){const par=makeCourse(s.worldIndex,s.hole).par;toast(e.strokes===1?'¡HOLE IN ONE!':e.strokes<par?'¡Birdie! Un golpe para recordar.':e.strokes===par?'¡Par! Bien jugado.':'¡Dentro! A por el siguiente.');}}if(e.type==='fall'&&e.id===me){sound('fall');toast('Bola fuera del campo. +1 golpe de penalización.');}if(e.type==='limit'&&e.id===me)toast('Límite de 16 golpes. Hoyo completado.');if(e.type==='timeout'&&e.id===me)toast('Tiempo agotado. Hoyo anotado con 16 golpes.');}
+ if(view==='game')updateHUD();if(view==='lobby'){const list=document.querySelector('#lobby-list');if(list)list.innerHTML=lobbyPlayers();if((document.querySelector('[data-action=start-online]')!==null)!==(room.host===me))render();}
+}
+function updateHUD(){
+ if(!state||view!=='game')return;const p=state.players.find(p=>p.id===me);if(!p)return;const ready=!p.moving&&!p.finished;
+ document.querySelector('#scores').innerHTML=[...state.players].sort((a,b)=>total(a)+(a.finished?0:a.strokes)-total(b)-(b.finished?0:b.strokes)).map((p,i)=>`<div class="score-row ${p.id===me?'is-me':''}"><span class="score-rank">${i+1}</span><span class="avatar" style="--ball:${p.color}"></span><div><strong>${esc(p.name)}</strong><span>${p.finished?'✓ En el hoyo':p.moving?'Rodando…':'Preparando el golpe'}</span></div><b>${total(p)+(p.finished?0:p.strokes)}</b></div>`).join('');
+ document.querySelector('#strokes').textContent=p.strokes;document.querySelector('#shot-label').textContent=p.finished?'¡DENTRO! BIEN JUGADO.':p.moving?'DEJA QUE RUEDE…':'TU TURNO DE BRILLAR';document.querySelector('#hit-button').disabled=!ready;
+ document.querySelector('#power-fill').style.width=power*100+'%';document.querySelector('#power-text').textContent=Math.round(power*100)+'%';document.querySelector('#power').value=Math.round(power*100);
+ const left=Math.max(0,180-Math.floor(state.time));document.querySelector('#timer').textContent=`${Math.floor(left/60).toString().padStart(2,'0')}:${(left%60).toString().padStart(2,'0')}`;document.querySelector('#timer-fill').style.width=left/180*100+'%';if(document.querySelector('#ping'))document.querySelector('#ping').textContent=`${ping} ms`;
+ const end=document.querySelector('#hole-end'),done=state.players.every(p=>p.finished);if(done){end.classList.remove('hidden');end.innerHTML=`<span class="eyebrow">${state.hole===8?'LA RONDA ESTÁ COMPLETA':'TODO EL GRUPO HA TERMINADO'}</span><h3>${state.hole===8?'El último buen golpe.':'Vamos a por otro.'}</h3>${!room||room.host===me?`<button class="btn primary" data-action="next">${state.hole===8?'Ver resultados':'Siguiente hoyo'} →</button>`:'<p>Esperando al anfitrión…</p>'}`;}else end.classList.add('hidden');
+ const svg=document.querySelector('.mini-map svg');if(svg){let dots=svg.querySelector('.map-players');if(!dots){dots=document.createElementNS('http://www.w3.org/2000/svg','g');dots.setAttribute('class','map-players');svg.append(dots);}dots.innerHTML=state.players.filter(p=>!p.finished).map(p=>`<circle cx="${p.pos.x}" cy="${p.pos.z}" r="${p.id===me?.55:.4}" fill="${p.color}" stroke="#243c31" stroke-width=".16"/>`).join('');}
+}
+function saveRecord(){if(victorySaved)return;victorySaved=true;const records=JSON.parse(localStorage.getItem('fairway-records')||'{}'),p=state.players.find(p=>p.id===me);if(!p)return;const score=total(p);if(!records[state.worldIndex]||score<records[state.worldIndex])records[state.worldIndex]=score;localStorage.setItem('fairway-records',JSON.stringify(records));}
+async function connect(type,code){
+ playerName();exiting=false;const button=document.querySelector(`[data-action=${type==='create'?'create-room':'join-room'}]`);if(button){button.disabled=true;button.textContent='Conectando…';}
+ const endpoint=`${location.protocol==='https:'?'wss':'ws'}://${location.host}/socket`;
+ socket=new WebSocket(endpoint);const ws=socket;let welcomed=false;
+ const timeout=setTimeout(()=>{if(!welcomed){ws.close();toast('El servidor tarda en responder. Inténtalo de nuevo en unos segundos.');if(modal==='online')renderModal();}},15000);
+ ws.addEventListener('open',()=>ws.send(JSON.stringify(type==='resume'?{type,code,token:resumeToken}:{type,code,name:prefs.name,worldIndex:selected,color:prefs.color})));
+ ws.addEventListener('message',event=>{let m;try{m=JSON.parse(event.data);}catch{return;}
+  if(m.type==='welcome'){welcomed=true;clearTimeout(timeout);reconnect=0;me=m.you;resumeToken=m.resumeToken;room=m.room;selected=room.worldIndex;solo?.dispose();solo=null;lastHole=-1;lastPhase='';if(type!=='resume')victorySaved=false;closeModal();sync(m.state);toast(type==='resume'?'Conexión recuperada.':'Sala conectada. ¡Nos vemos en el green!');}
+  if(m.type==='state'){room=m.room;if(state?.worldIndex!==m.state.worldIndex)lastHole=-1;sync(m.state);}
+  if(m.type==='pong')ping=Math.max(0,Date.now()-m.at);
+  if(m.type==='error'){toast(m.message);if(!welcomed){clearTimeout(timeout);exiting=true;ws.close();if(type==='resume')goMenu();else if(modal==='online')renderModal();}}
+ });
+ ws.addEventListener('close',()=>{clearTimeout(timeout);if(exiting||socket!==ws)return;if(welcomed&&room&&reconnect<5){reconnect++;toast('Conexión interrumpida. Recuperando la sala…');connect.retryTimer=setTimeout(()=>connect('resume',room.code),reconnect*1500);}else{toast('No se pudo conectar con la sala. Vuelve a intentarlo.');if(modal==='online')renderModal();else goMenu();}});
+ ws.addEventListener('error',()=>toast('No se puede conectar al servidor multijugador.'));
+}
+function send(m){if(socket?.readyState===1)socket.send(JSON.stringify(m));else toast('Esperando conexión con el servidor.');}
+function hit(){if(modal||view!=='game')return;const p=state?.players.find(p=>p.id===me);if(!p||p.moving||p.finished)return;if(solo){if(solo.shoot(me,angle,power))sound('hit');}else{send({type:'shot',angle,power});sound('hit');}drag=null;}
+app.addEventListener('click',async e=>{
+ const el=e.target.closest('[data-action]');if(!el||el.disabled)return;const a=el.dataset.action;
+ if(!['hit','color','sound'].includes(a))sound();
+ switch(a){
+  case 'menu':if(view==='game'||view==='lobby')showModal('pause');else goMenu();break;
+  case 'worlds':if(room||solo)cleanup();closeModal();view='worlds';scene.setMode(true);render();break;
+  case 'select-world':selected=Number(el.dataset.world);scene.loadCourse(makeCourse(selected,2));render();break;
+  case 'solo':playerName();startSolo();break;
+  case 'online':showModal('online');break;
+  case 'create-room':await connect('create');break;
+  case 'join-room':{const code=document.querySelector('#room-input')?.value.trim().toUpperCase();if(!/^[0-9A-F]{6}$/.test(code)){toast('Escribe un código de sala de seis caracteres.');break;}await connect('join',code);break;}
+  case 'start-online':send({type:'start'});break;
+  case 'settings':showModal('settings');break;
+  case 'profile':showModal('profile');break;
+  case 'help':showModal('help');break;
+  case 'pause':showModal('pause');break;
+  case 'close-modal':closeModal();break;
+  case 'save-profile':playerName();closeModal();render();break;
+  case 'color':playerName();prefs.color=Number(el.dataset.color);savePrefs();renderModal();break;
+  case 'sound':prefs.sound=!prefs.sound;savePrefs();renderModal();break;
+  case 'overview':scene.overview=!scene.overview;toast(scene.overview?'Vista aérea · Pulsa V para volver a tu bola.':'Cámara de juego');break;
+  case 'scorecard':showModal('scorecard');break;
+  case 'hit':hit();break;
+  case 'aim-left':angle-=Math.PI/36;break;
+  case 'aim-right':angle+=Math.PI/36;break;
+  case 'rescue':if(solo)solo.reset(me);else send({type:'reset'});sound('fall');toast('Bola rescatada. +1 golpe.');break;
+  case 'next':if(solo){solo.nextHole();sync(solo.snapshot());}else send({type:'next'});break;
+  case 'leave':if(socket?.readyState===1)send({type:'leave'});goMenu();break;
+  case 'again':if(room){goMenu();showModal('online');}else startSolo();break;
+  case 'copy-code':try{await navigator.clipboard.writeText(room.code);toast('Código copiado. Compártelo con tu grupo.');}catch{toast(`Tu código es ${room.code}`);}break;
+ }
+});
+app.addEventListener('input',e=>{if(e.target.id==='power'){power=Number(e.target.value)/100;updateHUD();}if(e.target.id==='volume'){prefs.volume=Number(e.target.value)/100;savePrefs();}});
+app.addEventListener('change',e=>{if(e.target.id==='quality'){prefs.quality=e.target.value;scene.setQuality(prefs.quality);savePrefs();}});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('pointerdown',e=>{
+ if(view!=='game'||modal)return;canvas.setPointerCapture(e.pointerId);
+ if(e.button===2||e.shiftKey){orbit={x:e.clientX,y:e.clientY,angle:scene.cameraAngle,pitch:scene.pitch};return;}
+ const p=state.players.find(p=>p.id===me);if(p.moving||p.finished)return;const ground=scene.projectToGround(e.clientX,e.clientY);if(!ground)return;drag={start:ground,x:e.clientX,y:e.clientY};
+});
+canvas.addEventListener('pointermove',e=>{
+ if(orbit){scene.cameraAngle=orbit.angle-(e.clientX-orbit.x)*.008;scene.pitch=Math.max(.3,Math.min(1.35,orbit.pitch+(e.clientY-orbit.y)*.005));return;}
+ if(!drag||modal)return;const p=state.players.find(p=>p.id===me),point=scene.projectToGround(e.clientX,e.clientY);if(!point)return;const dx=drag.start.x-point.x,dz=drag.start.z-point.z;const distance=Math.hypot(dx,dz);if(distance>.05){angle=Math.atan2(dx,-dz);power=Math.max(.02,Math.min(1,distance/5));updateHUD();}
+});
+canvas.addEventListener('pointerup',e=>{if(orbit){orbit=null;return;}if(drag){const travelled=Math.hypot(e.clientX-drag.x,e.clientY-drag.y);drag=null;if(travelled>10)hit();}});
+canvas.addEventListener('pointercancel',()=>{drag=null;orbit=null;});
+canvas.addEventListener('wheel',e=>{if(view==='game'){e.preventDefault();scene.distance=Math.max(6,Math.min(32,scene.distance+e.deltaY*.012));}},{passive:false});
+window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))return;if(e.key==='Escape'){if(modal)closeModal();else if(view==='game')showModal('pause');return;}if(modal||view!=='game')return;const k=e.key.toLowerCase();if([' ','arrowleft','arrowright','arrowup','arrowdown'].includes(k))e.preventDefault();if(k==='a'||k==='arrowleft')angle-=.035;if(k==='d'||k==='arrowright')angle+=.035;if(k==='w'||k==='arrowup')power=Math.min(1,power+.025);if(k==='s'||k==='arrowdown')power=Math.max(.02,power-.025);if(k===' ')hit();if(k==='v')scene.overview=!scene.overview;if(k==='r'){if(solo)solo.reset(me);else send({type:'reset'});}updateHUD();});
+setInterval(()=>{if(socket?.readyState===1)send({type:'ping',at:Date.now()});},3000);
+async function boot(){
+ try{await initPhysics();scene=new GolfScene(canvas);scene.setQuality(prefs.quality);scene.loadCourse(makeCourse(selected,2));render();document.querySelector('#loading').classList.add('loaded');setTimeout(()=>document.querySelector('#loading')?.remove(),650);
+  let previous=performance.now(),accumulator=0,hudTime=0;function frame(now){const dt=Math.min(.05,(now-previous)/1000);previous=now;
+   if(solo&&!(modal&&view==='game')){accumulator+=dt;while(accumulator>=1/60){solo.step();accumulator-=1/60;}const snap=solo.snapshot();if(snap.events.length||snap.phase!==lastPhase)sync(snap);else state=snap;}
+   const p=state?.players.find(p=>p.id===me);if(view==='game'&&p)scene.aim(p.pos,angle,power,!p.finished&&!p.moving&&!modal);
+   else if(scene.aimLine)scene.aimLine.visible=scene.aimHead.visible=false;
+   scene.render(dt,state,me);hudTime+=dt;if(hudTime>.1){hudTime=0;updateHUD();}requestAnimationFrame(frame);
+  }requestAnimationFrame(frame);
+ }catch(error){console.error(error);document.querySelector('#loading').innerHTML=`<div class="load-logo">⚑</div><p>No se pudo iniciar el campo 3D.</p><span>Activa WebGL o prueba un navegador actualizado.</span><button class="btn primary" onclick="location.reload()">Reintentar</button>`;}
+}
+// A read-only snapshot makes automated browser checks inspect actual game state.
+window.fairway={getState:()=>state?JSON.parse(JSON.stringify(state)):null,getView:()=>view,getRoom:()=>room?JSON.parse(JSON.stringify(room)):null,getRenderInfo:()=>scene?{calls:scene.renderer.info.render.calls,triangles:scene.renderer.info.render.triangles,quality:scene.quality}:null};
+boot();
