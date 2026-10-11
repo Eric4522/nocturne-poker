@@ -57,7 +57,7 @@ for(const [slug,mode,count,time] of [['test-politico-rapido','quick',52,'10–15
 }
 const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
 fs.writeFileSync(path.join(out,'modelo.csv'),'\ufeff'+[['Pregunta','Tema','Afirmación','Modalidad',...model.parties.map(p=>p.name)],...model.questions.map(q=>[q.id+1,model.topics[q.topic].name,q.text,q.quick?'Ambos':'Completo',...q.positions])].map(row=>row.map(csvCell).join(',')).join('\r\n'));
-const rssDate=new Date('2026-10-11T12:00:00Z').toUTCString();
+const rssDate=new Date(model.version+'T00:00:00Z').toUTCString();
 fs.writeFileSync(path.join(out,'feed.xml'),`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Conexión Política</title><link>${origin}/</link><description>Análisis y novedades de Conexión Política</description><language>es</language>${articles.map(([slug,t,d])=>`<item><title>${esc(t)}</title><description>${esc(d)}</description><link>${origin}/analisis/${slug}/</link><guid>${origin}/analisis/${slug}/</guid><pubDate>${rssDate}</pubDate></item>`).join('')}</channel></rss>`);
 fs.writeFileSync(path.join(out,'sitemap.xml'),'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+slugs.map(s=>`<url><loc>${origin}/${s?s+'/':''}</loc></url>`).join('\n')+'</urlset>');
 fs.writeFileSync(path.join(out,'robots.txt'),`User-agent: *\nAllow: /\n\nSitemap: ${origin}/sitemap.xml\n`);
